@@ -30,6 +30,7 @@ Everything lives in a single `TODO.md` file in your working directory — human-
 - **Timestamped notes** — append notes as `####` subsections with `(@username)` attribution
 - **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim
 - **Metadata** — creation datetime, folder, project, file location, status
+- **Fuzzy matching** — reference todos by number or by text; `/todo work csv parser` finds "Fix CSV parser to support semicolon delimiters"
 
 ## Installation
 
@@ -54,7 +55,7 @@ Then use `/todo` in any Claude Code session.
 
 ## Fix rate limiter bypassing auth endpoints
 
-> The rate limiter skips `/auth/` routes, allowing brute-force attacks.
+The rate limiter skips `/auth/` routes, allowing brute-force attacks.
 
 ### Metadata
 
@@ -81,6 +82,73 @@ Security audit flagged the allowlist on line 23...
 
 (@alice) Needs to be fixed before the audit report is finalized next week.
 ```
+
+## Sample conversation
+
+Here's a typical workflow showing how the commands work together:
+
+```
+You:  The CSV parser crashes on files with semicolon delimiters.
+      Can you take a look at src/parser/csv.ts?
+
+Claude: [reads the file, investigates the issue]
+        The parser hardcodes comma as the delimiter on line 14...
+
+You:  /todo add Fix CSV parser to support semicolon delimiters — critical for EU customers, P1
+
+Claude: Added todo "Fix CSV parser to support semicolon delimiters" 🔴 High
+        with context from our investigation (file location, root cause, etc.)
+```
+
+```
+You:  /todo note csv parser Alice confirmed we also need tab-delimited support for the Japan team
+
+Claude: Added note to "Fix CSV parser to support semicolon delimiters".
+```
+
+```
+You:  /todo work csv parser
+
+Claude: [displays the full context, metadata, and guidance]
+        I'm ready to work on "Fix CSV parser to support semicolon delimiters".
+        Based on the context above, here's my plan:
+        1. Refactor the delimiter to be configurable...
+        2. ...
+
+        [starts implementing the fix]
+```
+
+```
+You:  /todo done csv parser Ended up using a delimiter auto-detection approach instead of config
+
+Claude: Marked "Fix CSV parser to support semicolon delimiters" as done ✓
+        Resolution recorded with implementation details from this session.
+```
+
+```
+You:  /todo work retry logic
+
+Claude: [displays the full context, metadata, and guidance]
+        I'm ready to work on "Add retry logic to webhook delivery".
+        Based on the context above, here's my plan:
+        1. Read the current webhook delivery code...
+        2. Add exponential backoff with jitter...
+        3. ...
+
+        [starts implementing]
+```
+
+```
+You:  /todo list
+
+Claude: Open todos in TODO.md:
+
+          #  Title                                              Priority   Status
+          1  Fix CSV parser to support semicolon delimiters     🔴 High    Done ✓
+          2  Add retry logic to webhook delivery                🟡 Medium  Open
+```
+
+Each todo captures enough context that a future Claude session — or another developer — can pick it up and immediately know what to do, why, and how.
 
 ## License
 
