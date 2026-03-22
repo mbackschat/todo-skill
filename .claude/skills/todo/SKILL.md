@@ -1,6 +1,6 @@
 ---
 name: todo
-description: Manage a local TODO.md file. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", or asks to track, capture, or manage tasks in a TODO list.
+description: This skill manages a local TODO.md task list with rich context tracking. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", or asks to track, capture, or manage tasks in a TODO list.
 argument-hint: <add|list|done|work|note|remove> [todo title or number]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
@@ -8,9 +8,22 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 # TODO Manager
 
-Manage a `TODO.md` file in the current working directory. The file has two sections:
-1. **A bullet list** at the top — one line per todo with summary, priority badge, and anchor link
-2. **Detail sections** below — one `##` heading per todo with full context, metadata, and guidance
+Manage a structured, Markdown-based task list using a **split-file architecture**:
+
+- **`TODO.md`** — A lightweight index containing only the bullet list of todos
+- **`TODO/`** — A sibling directory where each todo has its own `<slug>.md` file with full context, metadata, and guidance
+
+```
+project/
+  TODO.md                                # Index: bullet list only
+  TODO/
+    fix-login-bug-on-oauth-flow.md       # Detail for todo 1
+    add-unit-tests-for-parser-module.md  # Detail for todo 2
+```
+
+This split keeps todo details out of Claude's context window when they aren't needed. LIST only greps bullet lines; WORK reads a single detail file; write operations use targeted edits.
+
+Current todo count: !`grep -c "^- \[" TODO.md 2>/dev/null || echo "0 (no TODO.md)"`
 
 ---
 
@@ -31,30 +44,14 @@ Determine the operation from the user's arguments or phrasing:
 
 ## ADD — Adding a new todo
 
-### Step 1: Read TODO.md (or create it if missing)
-
-If `TODO.md` does not exist, create it with this skeleton:
-
-```markdown
-# TODO
-
-## Tasks
-
----
-```
-
-If it exists, read it first.
-
-**Note:** When adding the first todo to a freshly created file, insert the bullet item on a blank line directly above the `---` separator. Never leave placeholder comments in the file.
-
-### Step 2: Build the anchor slug
+### Step 1: Build the anchor slug
 
 Create a URL-safe anchor slug from the title:
 - Lowercase, replace spaces with `-`, strip special characters
 - Example: "Fix login bug" → `fix-login-bug`
-- If a slug already exists in the file, append `-2`, `-3`, etc.
+- If a slug already exists (check `TODO.md` bullet lines and files in `TODO/`), append `-2`, `-3`, etc.
 
-### Step 3: Determine priority/relevancy
+### Step 2: Determine priority/relevancy
 
 If the user provided a priority or relevancy level (e.g. "high priority", "P1", "low", "critical", "nice-to-have"), normalize it to one of:
 - `🔴 High` / `🟡 Medium` / `🟢 Low`
@@ -63,7 +60,7 @@ Map common variants: P1/critical/urgent → High, P2/normal → Medium, P3/nice-
 
 If no priority given, omit the badge entirely (do not default to Medium).
 
-### Step 4: Collect metadata
+### Step 3: Collect metadata
 
 Gather from the current context:
 - **Created**: current date and time (ISO 8601, e.g. `2026-03-22 14:30`). To get the current time, run `date '+%Y-%m-%d %H:%M'` via Bash.
@@ -72,77 +69,69 @@ Gather from the current context:
 - **File / Location**: if the todo is about a specific file, function, or line range, record it
 - Any other relevant context from the conversation (related issue numbers, PR links, error messages, commands that triggered this, etc.)
 
-### Step 5: Write the bullet list entry
+### Step 4: Compose the detail file content
 
-Append to the `## Tasks` bullet list (before the `---` separator):
+Before writing anything, compose the full detail file content while you have conversation context. This is the most important step — the detail file must be **self-contained and actionable** for a future Claude session with zero prior context.
 
-```
-- [<summary>](#<slug>) <priority-badge-if-any>
-```
+The detail file (`TODO/<slug>.md`) must include these sections:
 
-Examples:
-```
-- [Fix login bug on OAuth flow](#fix-login-bug-on-oauth-flow) 🔴 High
-- [Refactor database connection pool](#refactor-database-connection-pool)
-- [Add unit tests for parser module](#add-unit-tests-for-parser-module) 🟢 Low
-```
+**`## <Title>`** — one-sentence description of what needs to be done and why.
 
-Keep the summary short (one line, ~80 chars max). It must be self-explanatory at a glance.
+**`### Metadata`** — table with Created, Folder, Project, Priority, Status, Location fields.
 
-### Step 6: Write the detail section
+**`### Context`** — the full background. Mine the conversation thoroughly and include:
+- The exact error messages, stack traces, or log output discussed
+- Specific file paths, function names, line numbers, and code snippets examined
+- Root cause analysis or hypotheses explored so far
+- Related issues, PRs, docs, or external resources mentioned
+- Constraints or requirements the user stated
+- The user's original request or the quote that prompted this todo
+- Any investigation already done (what was tried, what was found, what was ruled out)
 
-Append after the `---` separator:
-
-```markdown
-## <Title>
-
-<One-sentence description of what needs to be done and why.>
-
-### Metadata
-
-| Field    | Value |
-|----------|-------|
-| Created  | <datetime> |
-| Folder   | `<absolute path>` |
-| Project  | <project name> |
-| Priority | <badge> |
-| Status   | Open |
-| Location | `<file:line>` or `<file>` *(if applicable)* |
-
-### Context
-
-<Explain the background. Why does this need to be done? What is the current state? Include:
-- Relevant error messages, stack traces, or log output
-- Related files, functions, classes, or modules
-- Any constraints or requirements mentioned by the user
-- Links to issues, PRs, docs, or external resources if mentioned
-- The exact user request or quote that prompted this todo>
-
-### How to work on this
-
-<Step-by-step guidance for Claude (or the user) to pick this up later:
-1. What to read first (files, functions, docs)
+**`### How to work on this`** — step-by-step guidance:
+1. What to read first (specific files, functions, docs)
 2. What the change or investigation should involve
-3. Any gotchas, known constraints, or things to watch out for
-4. How to verify the work is done>
+3. Gotchas, known constraints, or things to watch out for
+4. How to verify the work is done (test commands, manual checks)
+
+**Do not summarize or abbreviate.** If the conversation includes a 10-line stack trace, include the full stack trace. If three files were investigated, list all three with what was found in each. The goal is zero information loss between the current conversation and the detail file.
+
+### Step 5: Write the files
+
+1. Create `TODO/` directory if it doesn't exist (`mkdir -p TODO`)
+2. If `TODO.md` doesn't exist, create it with the skeleton below
+3. Use `Edit` to insert the bullet line before the `---` separator in `TODO.md`:
+   ```
+   - [<summary>](#<slug>) <priority-badge-if-any>
+   ```
+4. Use `Write` to create `TODO/<slug>.md` with the composed detail content
+
+`TODO.md` skeleton (used only when creating a new file):
+```markdown
+# TODO
+
+## Tasks
+
+---
 ```
 
-**Important:** Make the detail section comprehensive enough that a future Claude session with no prior context can pick it up and immediately know what to do.
+**Note:** When adding the first todo to a freshly created file, insert the bullet item on a blank line directly above the `---` separator. Never leave placeholder comments in the file.
 
 ---
 
 ## LIST — Showing todos
 
-Read `TODO.md` and display a formatted summary:
+1. Check if `TODO.md` exists; if not, say "No TODO.md found."
+2. Use `Grep` with pattern `^- \[` on `TODO.md` to extract only the bullet lines — do NOT read the whole file
+3. Parse each bullet line to extract: title, priority badge, done status (strikethrough + checkmark)
+4. Display a formatted summary:
 
 ```
 Open todos in TODO.md:
 
   #  Title                                   Priority   Status
-  1  Fix login bug on OAuth flow             🔴 High    Open
-  2  Refactor database connection pool                  Open
-  3  Add unit tests for parser module        🟢 Low     Open
-  4  Update API documentation                           Done ✓
+  1  Fix login bug on OAuth flow             🔴 High    Done ✓
+  2  Add unit tests for parser module        🟢 Low     Open
 ```
 
 Group by status (Open first, then Done). If the file doesn't exist, say so.
@@ -151,239 +140,136 @@ Group by status (Open first, then Done). If the file doesn't exist, say so.
 
 ## DONE — Marking a todo complete
 
-1. Read `TODO.md`
-2. Find the matching todo (by number from LIST, or by fuzzy title match)
-3. In the bullet list: add ~~strikethrough~~ around the link text and append ` ✓`
-4. In the detail section:
-   - Change `Status` from `Open` to `Done`
-   - Add `Completed: <current datetime>` row to the Metadata table
-5. Append a `### Resolution` subsection to the todo's detail section (see format below)
-6. Write the changes back
+### Step 1: Identify the todo
 
-Example bullet after done:
-```
-- [~~Fix login bug on OAuth flow~~](#fix-login-bug-on-oauth-flow) 🔴 High ✓
-```
+Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link `(#<slug>)`.
 
-### Resolution subsection format
+### Step 2: Update TODO.md
 
-Append this after `### Notes` (or after `### How to work on this` if no Notes exist), before the next `##` heading (or end of file). Resolution is always the very last subsection of a done todo:
+Use `Edit` to add `~~strikethrough~~` around the link text of the matching bullet and append ` ✓`.
 
+### Step 3: Update the detail file
+
+Use `Edit` on `TODO/<slug>.md` to:
+1. Change `Status` from `Open` to `Done`
+2. Add `| Completed | <datetime> |` row to the Metadata table
+3. Append the Resolution subsection at the end of the file
+
+Compose the Resolution subsection by mining the full conversation context. Include:
+- What was actually done — files changed, functions modified, approach taken, commands run
+- What the root cause turned out to be (if investigative)
+- Decisions made and why (e.g. "chose approach X over Y because...")
+- Anything that deviated from the original "How to work on this" plan
+- Relevant output: test results, build output, or confirmation that the fix works
+- Code snippets or diffs if they clarify the resolution
+
+**Do not summarize briefly.** A one-sentence resolution like "Fixed the bug" is not acceptable. Write enough that someone reading only the resolution can understand what happened without re-reading the conversation.
+
+Resolution format:
 ```markdown
 ### Resolution
 
 **Completed:** <current datetime, e.g. 2026-03-22 16:45>
 
-<Generated summary of how the todo was resolved. Include:
-- What was actually done (files changed, approach taken, commands run)
-- What the root cause turned out to be (if investigative)
-- Any decisions made and why
-- Anything that deviated from the original "How to work on this" plan
-- Relevant output, test results, or confirmation that the work is done
-Draw this from the current conversation context — what was discussed, what tools were run, what changes were made.>
+<Full resolution narrative drawn from conversation context.>
 
-<If the user provided text when calling /todo done, include it as a bold-italic labelled line:>
-
-***User note:*** <verbatim user-provided text>
+***User note:*** <verbatim user-provided text, if any>
 ```
 
-**Rules for the Resolution subsection:**
-- Always generate a summary from conversation context, even if brief ("No context available — marked done manually.")
-- If the user supplied text alongside the done command (e.g. `/todo done 1 — turned out to be a race condition in the session store`), include it verbatim as a `***User note:***` bold-italic line. Never paraphrase or edit user-provided text.
-- If no user text was given, omit the `***User note:***` line entirely.
-- Keep generated content and user-provided content visually distinct — the bold-italic label makes it clear what came from the user vs. what was synthesized.
+**Rules:**
+- Always generate a resolution from conversation context. If no context is available, write "No conversation context available — marked done manually."
+- If the user supplied text alongside the done command, include it verbatim as `***User note:***`. Never paraphrase.
+- If no user text was given, omit `***User note:***` entirely.
 
 ---
 
 ## WORK — Starting work on a todo
 
-1. Read `TODO.md`
+1. Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines
 2. Find the matching todo (by number or fuzzy title match)
-3. Read and display the full detail section to the user
-4. Then say: "I'm ready to work on **<title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
-5. Proceed to implement or investigate as guided by the section.
+3. Extract the slug from the anchor link `(#<slug>)`
+4. Read `TODO/<slug>.md` and display the full detail section to the user
+5. Say: "I'm ready to work on **<title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
+6. Proceed to implement or investigate as guided by the section.
 
 ---
 
 ## NOTE — Adding a note to a todo
 
-1. Read `TODO.md`
-2. Find the matching todo (by number or fuzzy title match)
-3. Locate or create the `### Notes` subsection within that todo's detail block
-4. Append the new note entry (see format below)
-5. Write the changes back
-6. Confirm to the user: "Added note to **<title>**."
+### Step 1: Identify the todo
 
-### Notes subsection format
+Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link.
 
-The `### Notes` subsection is always the last subsection of an open todo — placed after `### How to work on this`. When a todo is marked done, `### Resolution` is appended after `### Notes`. If `### Notes` doesn't exist yet, create it after `### How to work on this`.
+### Step 2: Compose and write the note
 
-Each note is a `####` subheading under `### Notes`, with a short summary as the title and the datetime in parentheses:
+Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoami`.
+
+Use `Edit` on `TODO/<slug>.md` to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
 
 ```markdown
-### Notes
+#### <Short summary, 3-8 words> (<datetime>)
 
-#### Session store might be related (2026-03-22 14:30)
+(@<username>) <user's text verbatim>
 
-(@alice) Talked to Alice — she says the session store was migrated to Redis last sprint, might be related.
-
-#### Blocked on PR #401 (2026-03-23 09:15)
-
-(@alice) This is now blocked on PR #401 landing first. — Confirmed: `handleOAuthCallback()` calls `sessionStore.get()` which was changed in PR #401 to use the new Redis client.
+<Generated context paragraph — see below>
 ```
 
-### What goes into a note
+After the user's verbatim text, add a generated context paragraph (without `(@username)` prefix) if the conversation contains relevant information that enriches the note. This includes:
+- Error output, test results, or command output from the current session
+- Findings from file reads or code investigation done in this conversation
+- Code snippets, file paths, or line numbers discovered during the discussion
+- Connections to other todos, issues, or prior work discussed
 
-- **Title:** Write a short summary (3–8 words) capturing the essence of the note, followed by the datetime in parentheses: `#### <summary> (<datetime>)`
-- **Body:** The user's text is included verbatim, prefixed with `(@username)` where `username` is the actual system username (run `whoami` via Bash to get it). This distinguishes user-provided content from generated content.
-- If there is also relevant context from the conversation (e.g. error output, findings from recent tool calls, code snippets), append a generated paragraph after the user's text, without the `(@username)` prefix.
-
-Example:
-
-```markdown
-#### Semicolon delimiter needed for EU (2026-03-22 10:15)
-
-(@alice) The CSV parser also needs to handle semicolon-delimited files for EU customers.
-
-Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
-
-#### Nice to have before Q2 (2026-03-23 14:30)
-
-(@alice) Low priority but would be nice to have before the Q2 release.
-```
+The generated paragraph should capture specifics, not summaries. If you investigated a file and found the relevant line, include the file path and line number. If a test failed with a specific error, include the error.
 
 **Rules:**
-- Always use the current datetime (e.g. `2026-03-22 14:30`) as the timestamp. Run `date '+%Y-%m-%d %H:%M'` to get it.
-- Always mark user-provided text with `(@username)` at the start, where `username` comes from `whoami`
-- If the user provides no text but asks to "add a note", prompt them for what to write — don't generate a note from thin air
-- If the user provides text AND there's useful conversation context to add, put the user text (with `(@username)`) first, then add generated context as a separate paragraph below (without a prefix)
-- Notes are append-only — never edit or remove existing notes (use `remove` to delete the whole todo if needed)
+- Always mark user-provided text with `(@username)` at the start
+- If the user provides no text but asks to "add a note", prompt them for what to write
+- If the user provides text but no conversation context is relevant, omit the generated paragraph
+- Notes are append-only — never edit or remove existing notes
+
+`TODO.md` is not modified for NOTE operations.
 
 ---
 
 ## REMOVE — Deleting a todo
 
-1. Read `TODO.md`
-2. Find the matching todo
-3. Remove both the bullet list entry and the full detail section
-4. Confirm deletion to the user
+1. Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines
+2. Find the matching todo and extract the slug
+3. Edit `TODO.md` to remove the bullet line
+4. Delete `TODO/<slug>.md` via Bash (`rm TODO/<slug>.md`)
+5. Confirm deletion to the user
 
 ---
 
 ## File format rules
 
-- The `## Tasks` section contains only bullet list items (and the `---` separator at the end)
-- All detail sections are `##` headings placed after the `---`
-- Never renumber or reorder existing entries; always append new ones
-- Preserve all existing content when editing
-- Subsection order within a todo detail block:
+- **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` bullet list, and the `---` separator. No detail sections.
+- **`TODO/<slug>.md`** contains a single todo's detail section, starting with `## <Title>`. One file per todo.
+- The `TODO/` directory is a sibling of `TODO.md` (same parent directory).
+- Slug derivation: lowercase, replace spaces with `-`, strip special characters. Used for both anchor links and filenames.
+- Subsection order within a detail file:
   1. `### Metadata`
   2. `### Context`
   3. `### How to work on this`
   4. `### Notes` (last for open todos — easy to append to)
   5. `### Resolution` (only when done — always the very last subsection)
+- Never renumber or reorder existing bullet entries; always append new ones
+- Preserve all existing content when editing
+
+For complete format templates and examples, see [examples.md](examples.md).
 
 ---
 
-## Example TODO.md
+## Migration from single-file format
 
-```markdown
-# TODO
+If `TODO.md` exists and contains `## ` headings after the `---` separator, it uses the legacy single-file format. On the first operation, migrate automatically:
 
-## Tasks
+1. Read the full `TODO.md`
+2. Split content after the `---` separator on `## ` headings to extract each detail section
+3. Create `TODO/` directory
+4. For each detail section, derive the slug from the heading and write `TODO/<slug>.md`
+5. Truncate `TODO.md` to keep only `# TODO`, `## Tasks`, the bullet list, and the `---` separator
+6. Inform the user: "Migrated N todos to split-file format (`TODO/` directory created)."
 
-- [~~Fix login bug on OAuth flow~~](#fix-login-bug-on-oauth-flow) 🔴 High ✓
-- [Add unit tests for parser module](#add-unit-tests-for-parser-module) 🟢 Low
-
----
-
-## Fix login bug on OAuth flow
-
-OAuth login silently fails when the provider returns a `state` mismatch; users see a blank screen.
-
-### Metadata
-
-| Field     | Value |
-|-----------|-------|
-| Created   | 2026-03-22 09:45 |
-| Completed | 2026-03-22 17:30 |
-| Folder    | `/Users/alice/projects/myapp` |
-| Project   | myapp |
-| Priority  | 🔴 High |
-| Status    | Done |
-| Location  | `src/auth/oauth.ts:142` |
-
-### Context
-
-User reported that clicking "Login with GitHub" redirects back to the app but shows a blank page. The browser console shows:
-
-```
-Error: state mismatch — expected abc123, got xyz789
-```
-
-The `state` parameter is generated in `generateOAuthState()` (src/auth/oauth.ts:89) and validated in `handleOAuthCallback()` (line 142). The issue may be related to the session store expiring the state before the callback arrives, especially under load.
-
-Related: GitHub issue #412, PR #389 (previous attempt that was reverted).
-
-### How to work on this
-
-1. Read `src/auth/oauth.ts`, focusing on `generateOAuthState()` and `handleOAuthCallback()`
-2. Check how the state is stored — look at `src/session/store.ts`
-3. Reproduce by setting a very short session TTL and triggering OAuth
-4. Fix: likely increase state TTL or use a separate short-lived state store
-5. Verify: run `npm test -- --grep oauth` and do a manual login test
-
-### Notes
-
-#### Session store might be the culprit (2026-03-22 11:00)
-
-(@alice) Talked to Bob — he says the session store was migrated to Redis last sprint, might be related.
-
-### Resolution
-
-**Completed:** 2026-03-22 17:30
-
-The root cause was a 30-second TTL on the session state key in Redis, which expired before the OAuth provider redirected back under slow network conditions. Increased the TTL to 10 minutes in `src/session/store.ts:58` and added a fallback to re-generate the state if the key is missing. All OAuth tests pass (`npm test -- --grep oauth`: 12/12). Deployed to staging and verified login works end-to-end.
-
-***User note:*** turned out to be a race condition in the session store, not the OAuth library itself
-
----
-
-## Add unit tests for parser module
-
-The parser has zero test coverage; any refactor risks silent regressions.
-
-### Metadata
-
-| Field    | Value |
-|----------|-------|
-| Created  | 2026-03-22 11:00 |
-| Folder   | `/Users/alice/projects/myapp` |
-| Project  | myapp |
-| Priority | 🟢 Low |
-| Status   | Open |
-| Location | `src/parser/` |
-
-### Context
-
-The `src/parser/` module was written quickly and has no tests. It handles CSV and JSON input parsing for the data import feature. There are known edge cases around empty rows and malformed UTF-8 that have caused support tickets (#301, #318).
-
-### How to work on this
-
-1. Read all files in `src/parser/`
-2. Write tests in `tests/parser/` mirroring the source structure
-3. Cover: happy path, empty input, malformed input, encoding edge cases
-4. Run `npm test` to confirm passing
-
-### Notes
-
-#### Semicolon delimiter needed for EU (2026-03-22 11:20)
-
-(@alice) The CSV parser also needs to handle semicolon-delimited files for EU customers.
-
-Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
-
-#### Nice to have before Q2 (2026-03-23 15:45)
-
-(@alice) Low priority but would be nice to have before the Q2 release.
-```
+Migration is idempotent — if `TODO/` already exists with matching files, skip.

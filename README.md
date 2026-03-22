@@ -4,12 +4,36 @@ A [Claude Code](https://claude.com/claude-code) skill that manages a local `TODO
 
 ## What it does
 
-`/todo` gives you a structured, Markdown-based task list where each todo has:
+`/todo` gives you a structured, Markdown-based task list using a **split-file architecture**:
 
-- A **bullet list entry** with summary, priority badge, and anchor link
-- A **detail section** with metadata, full context, step-by-step guidance, notes, and resolution
+- **`TODO.md`** — A lightweight index file containing only the bullet list of todos (summary, priority badge, anchor link)
+- **`TODO/<slug>.md`** — One file per todo with full metadata, context, step-by-step guidance, notes, and resolution
 
-Everything lives in a single `TODO.md` file in your working directory — human-readable, git-friendly, and designed so a future Claude session can pick up any todo and immediately know what to do.
+Human-readable, git-friendly, and designed so a future Claude session can pick up any todo and immediately know what to do.
+
+## Why split files?
+
+A single `TODO.md` that contains both the task list and all detail sections has a scaling problem: every operation loads the entire file into Claude's context window, even when most of the content is irrelevant. Adding a todo requires reading every other todo's full context. Listing tasks pulls in hundreds of lines of detail you'll never display.
+
+The split-file architecture solves this:
+
+- **LIST** greps only bullet lines from `TODO.md` — never loads detail content
+- **WORK** reads only the single `TODO/<slug>.md` file it needs
+- **ADD / DONE / NOTE** use targeted edits on specific files — no need to read or load unrelated todos
+
+This means the skill stays fast and context-efficient regardless of how many todos you accumulate. A `TODO.md` with 50 items is just 50 bullet lines, not 50 full detail sections.
+
+**Trade-off:** slightly more files on disk. But each file is small, independently readable, and diffs cleanly in git.
+
+## Directory structure
+
+```
+project/
+  TODO.md                                # Index: bullet list only
+  TODO/
+    fix-login-bug-on-oauth-flow.md       # Detail for todo 1
+    add-unit-tests-for-parser-module.md  # Detail for todo 2
+```
 
 ## Commands
 
@@ -31,28 +55,38 @@ Everything lives in a single `TODO.md` file in your working directory — human-
 - **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim
 - **Metadata** — creation datetime, folder, project, file location, status
 - **Fuzzy matching** — reference todos by number or by text; `/todo work csv parser` finds "Fix CSV parser to support semicolon delimiters"
+- **Legacy migration** — automatically migrates existing single-file `TODO.md` to the split format on first use
 
 ## Installation
 
-Copy `SKILL.md` into your Claude Code skills directory:
+Copy the skill directory into your Claude Code skills directory:
 
 ```bash
 mkdir -p ~/.claude/skills/todo
-cp SKILL.md ~/.claude/skills/todo/SKILL.md
+cp .claude/skills/todo/SKILL.md ~/.claude/skills/todo/SKILL.md
+cp .claude/skills/todo/examples.md ~/.claude/skills/todo/examples.md
 ```
 
 Then use `/todo` in any Claude Code session.
 
 ## Example
 
+**`TODO.md`** — the index file:
+
 ```markdown
+# TODO
+
 ## Tasks
 
 - [Fix rate limiter bypassing auth endpoints](#fix-rate-limiter-bypassing-auth-endpoints) 🔴 High
 - [Add dark mode to settings](#add-dark-mode-to-settings) 🟡 Medium
 
 ---
+```
 
+**`TODO/fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
+
+```markdown
 ## Fix rate limiter bypassing auth endpoints
 
 The rate limiter skips `/auth/` routes, allowing brute-force attacks.
@@ -123,19 +157,6 @@ You:  /todo done csv parser Ended up using a delimiter auto-detection approach i
 
 Claude: Marked "Fix CSV parser to support semicolon delimiters" as done ✓
         Resolution recorded with implementation details from this session.
-```
-
-```
-You:  /todo work retry logic
-
-Claude: [displays the full context, metadata, and guidance]
-        I'm ready to work on "Add retry logic to webhook delivery".
-        Based on the context above, here's my plan:
-        1. Read the current webhook delivery code...
-        2. Add exponential backoff with jitter...
-        3. ...
-
-        [starts implementing]
 ```
 
 ```
