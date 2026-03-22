@@ -96,7 +96,7 @@ Append after the `---` separator:
 ```markdown
 ## <Title>
 
-> <One-sentence description of what needs to be done and why.>
+<One-sentence description of what needs to be done and why.>
 
 ### Metadata
 
@@ -167,7 +167,7 @@ Example bullet after done:
 
 ### Resolution subsection format
 
-Append this after the last existing subsection of the todo's detail block, before the next `##` heading (or end of file):
+Append this after `### Notes` (or after `### How to work on this` if no Notes exist), before the next `##` heading (or end of file). Resolution is always the very last subsection of a done todo:
 
 ```markdown
 ### Resolution
@@ -182,16 +182,16 @@ Append this after the last existing subsection of the todo's detail block, befor
 - Relevant output, test results, or confirmation that the work is done
 Draw this from the current conversation context — what was discussed, what tools were run, what changes were made.>
 
-<If the user provided text when calling /todo done, include it in a clearly labelled block:>
+<If the user provided text when calling /todo done, include it as a bold-italic labelled line:>
 
-> **Note from user:** <verbatim user-provided text>
+***User note:*** <verbatim user-provided text>
 ```
 
 **Rules for the Resolution subsection:**
 - Always generate a summary from conversation context, even if brief ("No context available — marked done manually.")
-- If the user supplied text alongside the done command (e.g. `/todo done 1 — turned out to be a race condition in the session store`), include it verbatim in the `> **Note from user:**` blockquote. Never paraphrase or edit user-provided text.
-- If no user text was given, omit the `> **Note from user:**` blockquote entirely.
-- Keep generated content and user-provided content visually distinct — the blockquote makes it clear what came from the user vs. what was synthesized.
+- If the user supplied text alongside the done command (e.g. `/todo done 1 — turned out to be a race condition in the session store`), include it verbatim as a `***User note:***` bold-italic line. Never paraphrase or edit user-provided text.
+- If no user text was given, omit the `***User note:***` line entirely.
+- Keep generated content and user-provided content visually distinct — the bold-italic label makes it clear what came from the user vs. what was synthesized.
 
 ---
 
@@ -216,7 +216,7 @@ Draw this from the current conversation context — what was discussed, what too
 
 ### Notes subsection format
 
-The `### Notes` subsection is placed after `### Context` and before `### How to work on this`. If it doesn't exist yet, create it in that position.
+The `### Notes` subsection is always the last subsection of an open todo — placed after `### How to work on this`. When a todo is marked done, `### Resolution` is appended after `### Notes`. If `### Notes` doesn't exist yet, create it after `### How to work on this`.
 
 Each note is a `####` subheading under `### Notes`, with a short summary as the title and the datetime in parentheses:
 
@@ -276,6 +276,12 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 - All detail sections are `##` headings placed after the `---`
 - Never renumber or reorder existing entries; always append new ones
 - Preserve all existing content when editing
+- Subsection order within a todo detail block:
+  1. `### Metadata`
+  2. `### Context`
+  3. `### How to work on this`
+  4. `### Notes` (last for open todos — easy to append to)
+  5. `### Resolution` (only when done — always the very last subsection)
 
 ---
 
@@ -293,7 +299,7 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 
 ## Fix login bug on OAuth flow
 
-> OAuth login silently fails when the provider returns a `state` mismatch; users see a blank screen.
+OAuth login silently fails when the provider returns a `state` mismatch; users see a blank screen.
 
 ### Metadata
 
@@ -327,19 +333,25 @@ Related: GitHub issue #412, PR #389 (previous attempt that was reverted).
 4. Fix: likely increase state TTL or use a separate short-lived state store
 5. Verify: run `npm test -- --grep oauth` and do a manual login test
 
+### Notes
+
+#### Session store might be the culprit (2026-03-22 11:00)
+
+(@alice) Talked to Bob — he says the session store was migrated to Redis last sprint, might be related.
+
 ### Resolution
 
 **Completed:** 2026-03-22 17:30
 
 The root cause was a 30-second TTL on the session state key in Redis, which expired before the OAuth provider redirected back under slow network conditions. Increased the TTL to 10 minutes in `src/session/store.ts:58` and added a fallback to re-generate the state if the key is missing. All OAuth tests pass (`npm test -- --grep oauth`: 12/12). Deployed to staging and verified login works end-to-end.
 
-> **Note from user:** turned out to be a race condition in the session store, not the OAuth library itself
+***User note:*** turned out to be a race condition in the session store, not the OAuth library itself
 
 ---
 
 ## Add unit tests for parser module
 
-> The parser has zero test coverage; any refactor risks silent regressions.
+The parser has zero test coverage; any refactor risks silent regressions.
 
 ### Metadata
 
@@ -356,6 +368,13 @@ The root cause was a 30-second TTL on the session state key in Redis, which expi
 
 The `src/parser/` module was written quickly and has no tests. It handles CSV and JSON input parsing for the data import feature. There are known edge cases around empty rows and malformed UTF-8 that have caused support tickets (#301, #318).
 
+### How to work on this
+
+1. Read all files in `src/parser/`
+2. Write tests in `tests/parser/` mirroring the source structure
+3. Cover: happy path, empty input, malformed input, encoding edge cases
+4. Run `npm test` to confirm passing
+
 ### Notes
 
 #### Semicolon delimiter needed for EU (2026-03-22 11:20)
@@ -367,11 +386,4 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 #### Nice to have before Q2 (2026-03-23 15:45)
 
 (@alice) Low priority but would be nice to have before the Q2 release.
-
-### How to work on this
-
-1. Read all files in `src/parser/`
-2. Write tests in `tests/parser/` mirroring the source structure
-3. Cover: happy path, empty input, malformed input, encoding edge cases
-4. Run `npm test` to confirm passing
 ```

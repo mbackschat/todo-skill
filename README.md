@@ -71,15 +71,15 @@ Then use `/todo` in any Claude Code session.
 
 Security audit flagged the allowlist on line 23...
 
+### How to work on this
+
+1. Read `src/middleware/rateLimiter.ts`...
+
 ### Notes
 
 #### Found during Q1 audit (2026-03-22 10:15)
 
 (@alice) Needs to be fixed before the audit report is finalized next week.
-
-### How to work on this
-
-1. Read `src/middleware/rateLimiter.ts`...
 ```
 
 ## License
