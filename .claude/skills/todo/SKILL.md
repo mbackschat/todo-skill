@@ -139,12 +139,13 @@ The detail file (`<NNN>-<slug>.md`) must include these sections:
 ```
 Todos in TODO.md:
 
-  No   Title                                   Priority   Status    Created      Changed
+  No   Title                                   Priority   Status    Created            Changed
   001  Fix login bug on OAuth flow             🔴 High    Done ✓    2026-03-22 09:45   2026-03-22 17:30
-  002  Add unit tests for parser module        🟢 Low     Open      2026-03-22 11:00   2026-03-23 15:45
+  002  Add unit tests for parser module        🟢 Low     Active    2026-03-23 11:00   2026-03-23 15:45
+  003  Refactor database pool                             Open      2026-03-23 14:00   2026-03-23 14:00
 ```
 
-Group by status (Open first, then Done). If the file doesn't exist, say so.
+Group by status (Active first, then Open, then Done). If the file doesn't exist, say so.
 
 ---
 
@@ -166,11 +167,13 @@ Use `Edit` to modify the matching table row:
 ### Step 3: Update the detail file
 
 Use `Edit` on `<NNN>-<slug>.md` to:
-1. Change `Status` from `Open` to `Done`
+1. Change `Status` from `Open` or `Active` to `Done`
 2. Add `| Completed | <datetime> |` row to the Metadata table
-3. Append the Resolution subsection at the end of the file
+3. Append the `#### Findings when Done` subsection under `### Resolution`
 
-Compose the Resolution subsection by mining the full conversation context. Include:
+If the `### Resolution` section already exists (e.g. from a prior `work` command that added a `#### Work Context` subsection), **append** the new subsection to it. If not, create `### Resolution` first, then add the subsection.
+
+Compose the Findings when Done subsection by mining the full conversation context. Include:
 - What was actually done — files changed, functions modified, approach taken, commands run
 - What the root cause turned out to be (if investigative)
 - Decisions made and why (e.g. "chose approach X over Y because...")
@@ -180,9 +183,9 @@ Compose the Resolution subsection by mining the full conversation context. Inclu
 
 **Do not summarize briefly.** A one-sentence resolution like "Fixed the bug" is not acceptable. Write enough that someone reading only the resolution can understand what happened without re-reading the conversation.
 
-Resolution format:
+Findings when Done format:
 ```markdown
-### Resolution
+#### Findings when Done
 
 **Completed:** <current datetime, e.g. 2026-03-22 16:45>
 
@@ -206,12 +209,45 @@ Resolution format:
 
 ## WORK — Starting work on a todo
 
-1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
-2. Find the matching todo (by number or fuzzy title match)
-3. Extract the file path from the link in the Title cell (may be `<NNN>-<slug>.md` or `DONE/<NNN>-<slug>.md`)
-4. Read the detail file at the extracted path and display the full detail section to the user
-5. Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
-6. Proceed to implement or investigate as guided by the section.
+### Step 1: Identify the todo
+
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `<NNN>-<slug>.md` or `DONE/<NNN>-<slug>.md`).
+
+### Step 2: Read and display the detail file
+
+Read the detail file at the extracted path and display the full detail section to the user.
+
+### Step 3: Update TODO.md
+
+Use `Edit` to modify the matching table row:
+1. Change the Status cell to `Active`
+2. Update the Changed datetime to the current datetime
+
+### Step 4: Update the detail file
+
+Use `Edit` on `<NNN>-<slug>.md` to:
+1. Change `Status` from `Open` to `Active`
+2. Append the `### Resolution` section at the end of the file (if not already present) with a `#### Work Context` subsection:
+
+```markdown
+### Resolution
+
+#### Work Context
+
+**Active since:** <current datetime, e.g. 2026-03-22 16:45>
+
+<Plan of attack drawn from conversation context and the "How to work on this" section: what will be investigated or changed, approach, key files to touch.>
+```
+
+If the `### Resolution` section already exists (e.g. from a previous work session), append a new `#### Work Context` entry instead of creating the section again.
+
+### Step 5: Begin work
+
+Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section. Proceed to implement or investigate as guided by the section.
+
+**Rules:**
+- WORK does **not** mark a todo as done and does **not** move the file to `DONE/`
+- The todo stays in its original location next to `TODO.md`
 
 ---
 
@@ -288,12 +324,15 @@ When a user references a todo, they may use:
 - Detail files (`<NNN>-<slug>.md`) live in the same directory as `TODO.md`. `DONE/` is a sibling directory of `TODO.md`.
 - Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both file links and filenames.
 - Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
+- Status values: `Open` → `Active` (set by work) → `Done` (set by done). In `TODO.md` the done status is `Done ✓`.
 - Subsection order within a detail file:
   1. `### Metadata`
   2. `### Context`
   3. `### How to work on this`
-  4. `### Notes` (last for open todos — easy to append to)
-  5. `### Resolution` (only when done — always the very last subsection)
+  4. `### Notes` (append-only timestamped notes)
+  5. `### Resolution` (always the very last subsection, containing `####` subsections):
+     - `#### Work Context` — added by `work`, contains "Active since:" and plan of attack
+     - `#### Findings when Done` — added by `done`, contains "Completed:" and full resolution narrative
 - Preserve all existing content when editing
 
 For complete format templates and examples, see [examples.md](examples.md).
