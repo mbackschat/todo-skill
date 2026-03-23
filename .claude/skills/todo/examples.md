@@ -1,6 +1,6 @@
 # TODO Skill — Format Templates and Examples
 
-## Detail file template (`TODO/<NNN>-<slug>.md`)
+## Detail file template (`<NNN>-<slug>.md`)
 
 ```markdown
 ## #<NNN> <Title>
@@ -47,14 +47,14 @@
 
 | No | Title | Priority | Status | Created | Changed |
 |----|-------|----------|--------|---------|---------|
-| 001 | [~~Fix login bug on OAuth flow~~](TODO/DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
-| 002 | [Add unit tests for parser module](TODO/002-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-23 15:45 |
+| 001 | [~~Fix login bug on OAuth flow~~](DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
+| 002 | [Add unit tests for parser module](002-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-23 15:45 |
 
 ---
 <!-- next: 3 -->
 ```
 
-### `TODO/DONE/001-fix-login-bug-on-oauth-flow.md` — completed todo
+### `DONE/001-fix-login-bug-on-oauth-flow.md` — completed todo
 
 ```markdown
 ## #001 Fix login bug on OAuth flow
@@ -108,7 +108,7 @@ The root cause was a 30-second TTL on the session state key in Redis, which expi
 ***User note:*** turned out to be a race condition in the session store, not the OAuth library itself
 ```
 
-### `TODO/002-add-unit-tests-for-parser-module.md` — open todo with notes
+### `002-add-unit-tests-for-parser-module.md` — open todo with notes
 
 ```markdown
 ## #002 Add unit tests for parser module
@@ -153,19 +153,19 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 ## Table row format
 
 ```
-| <NNN> | [<summary>](TODO/<NNN>-<slug>.md) | <priority-badge-or-empty> | <status> | <created-datetime> | <changed-datetime> |
+| <NNN> | [<summary>](<NNN>-<slug>.md) | <priority-badge-or-empty> | <status> | <created-datetime> | <changed-datetime> |
 ```
 
 Examples:
 ```
-| 001 | [Fix login bug on OAuth flow](TODO/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
-| 002 | [Refactor database connection pool](TODO/002-refactor-database-connection-pool.md) | | Open | 2026-03-22 10:15 | 2026-03-22 10:15 |
-| 003 | [Add unit tests for parser module](TODO/003-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-22 11:00 |
+| 001 | [Fix login bug on OAuth flow](001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
+| 002 | [Refactor database connection pool](002-refactor-database-connection-pool.md) | | Open | 2026-03-22 10:15 | 2026-03-22 10:15 |
+| 003 | [Add unit tests for parser module](003-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-22 11:00 |
 ```
 
-After marking done (link updated to `TODO/DONE/`, file moved there):
+After marking done (link updated to `DONE/`, file moved there):
 ```
-| 001 | [~~Fix login bug on OAuth flow~~](TODO/DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
+| 001 | [~~Fix login bug on OAuth flow~~](DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
 ```
 
 ## Notes subsection format

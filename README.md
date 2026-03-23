@@ -7,7 +7,8 @@ A [Claude Code](https://claude.com/claude-code) skill that manages a local `TODO
 `/todo` gives you a structured, Markdown-based task list using a **split-file architecture**:
 
 - **`TODO.md`** — A lightweight index file containing a numbered table of todos (number, title, priority, status, dates) and an auto-incrementing counter
-- **`TODO/<NNN>-<slug>.md`** — One file per todo with full metadata, context, step-by-step guidance, notes, and resolution
+- **`<NNN>-<slug>.md`** — One file per todo (next to `TODO.md`) with full metadata, context, step-by-step guidance, notes, and resolution
+- **`DONE/`** — Completed todo files are moved here
 
 Human-readable, git-friendly, and designed so a future Claude session can pick up any todo and immediately know what to do.
 
@@ -18,7 +19,7 @@ A single `TODO.md` that contains both the task list and all detail sections has 
 The split-file architecture solves this:
 
 - **LIST** greps only table rows from `TODO.md` — never loads detail content
-- **WORK** reads only the single `TODO/<NNN>-<slug>.md` file it needs
+- **WORK** reads only the single `<NNN>-<slug>.md` file it needs
 - **ADD / DONE / NOTE** use targeted edits on specific files — no need to read or load unrelated todos
 
 This means the skill stays fast and context-efficient regardless of how many todos you accumulate. A `TODO.md` with 50 items is just a 50-row table, not 50 full detail sections.
@@ -30,10 +31,9 @@ This means the skill stays fast and context-efficient regardless of how many tod
 ```
 project/
   TODO.md                                    # Index: numbered table + counter
-  TODO/
-    DONE/
-      001-fix-login-bug-on-oauth-flow.md     # Completed todo #001
-    002-add-unit-tests-for-parser-module.md  # Open todo #002
+  DONE/
+    001-fix-login-bug-on-oauth-flow.md       # Completed todo #001
+  002-add-unit-tests-for-parser-module.md    # Open todo #002
 ```
 
 ## Commands
@@ -55,7 +55,7 @@ project/
 - **Rich context** — captures error messages, file locations, related issues, and conversation context
 - **Actionable guidance** — each todo has a "How to work on this" section with step-by-step instructions
 - **Timestamped notes** — append notes as `####` subsections with `(@username)` attribution
-- **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim. The detail file is moved from `TODO/` to `TODO/DONE/` to keep the active directory clean
+- **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim. The detail file is moved to `DONE/` to keep the working directory clean
 - **Metadata** — creation datetime, folder, project, file location, status
 - **Flexible referencing** — reference todos by number (`/todo work 1`, `/todo work #001`) or by text (`/todo work csv parser`) — numbers are supported but optional
 - **Legacy migration** — automatically migrates existing bullet-list or single-file `TODO.md` to the numbered table format on first use
@@ -83,14 +83,14 @@ Then use `/todo` in any Claude Code session.
 
 | No | Title | Priority | Status | Created | Changed |
 |----|-------|----------|--------|---------|---------|
-| 001 | [Fix rate limiter bypassing auth endpoints](TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
-| 002 | [Add dark mode to settings](TODO/002-add-dark-mode-to-settings.md) | 🟡 Medium | Open | 2026-03-22 10:30 | 2026-03-22 10:30 |
+| 001 | [Fix rate limiter bypassing auth endpoints](001-fix-rate-limiter-bypassing-auth-endpoints.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
+| 002 | [Add dark mode to settings](002-add-dark-mode-to-settings.md) | 🟡 Medium | Open | 2026-03-22 10:30 | 2026-03-22 10:30 |
 
 ---
 <!-- next: 3 -->
 ```
 
-**`TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
+**`001-fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
 
 ```markdown
 ## #001 Fix rate limiter bypassing auth endpoints
