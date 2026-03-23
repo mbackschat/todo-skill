@@ -17,8 +17,9 @@ Manage a structured, Markdown-based task list using a **split-file architecture*
 project/
   TODO.md                                    # Index: numbered table + counter
   TODO/
-    001-fix-login-bug-on-oauth-flow.md       # Detail for todo #001
-    002-add-unit-tests-for-parser-module.md  # Detail for todo #002
+    DONE/
+      001-fix-login-bug-on-oauth-flow.md     # Completed todo #001
+    002-add-unit-tests-for-parser-module.md  # Open todo #002
 ```
 
 This split keeps todo details out of Claude's context window when they aren't needed. LIST only greps table rows; WORK reads a single detail file; write operations use targeted edits.
@@ -191,6 +192,12 @@ Resolution format:
 ***User note:*** <verbatim user-provided text, if any>
 ```
 
+### Step 4: Move the detail file to DONE/
+
+1. Create the `TODO/DONE/` directory if it doesn't exist: `mkdir -p TODO/DONE`
+2. Move the file via Bash: `mv TODO/<NNN>-<slug>.md TODO/DONE/<NNN>-<slug>.md`
+3. Use `Edit` on `TODO.md` to update the link in the matching table row from `(TODO/<NNN>-<slug>.md)` to `(TODO/DONE/<NNN>-<slug>.md)`
+
 **Rules:**
 - Always generate a resolution from conversation context. If no context is available, write "No conversation context available — marked done manually."
 - If the user supplied text alongside the done command, include it verbatim as `***User note:***`. Never paraphrase.
@@ -202,8 +209,8 @@ Resolution format:
 
 1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
 2. Find the matching todo (by number or fuzzy title match)
-3. Extract the slug from the file link `(TODO/<NNN>-<slug>.md)`
-4. Read `TODO/<NNN>-<slug>.md` and display the full detail section to the user
+3. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`)
+4. Read the detail file at the extracted path and display the full detail section to the user
 5. Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
 6. Proceed to implement or investigate as guided by the section.
 
@@ -213,13 +220,13 @@ Resolution format:
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the file link.
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`).
 
 ### Step 2: Compose and write the note
 
 Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoami`.
 
-Use `Edit` on `TODO/<NNN>-<slug>.md` to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
+Use `Edit` on the extracted file path to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
 
 ```markdown
 #### <Short summary, 3-8 words> (<datetime>)
@@ -252,9 +259,9 @@ Use `Edit` to update the Changed column of the matching table row to the current
 ## REMOVE — Deleting a todo
 
 1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
-2. Find the matching todo and extract the slug
+2. Find the matching todo and extract the file path from the link (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`)
 3. Edit `TODO.md` to remove the table row
-4. Delete `TODO/<NNN>-<slug>.md` via Bash (`rm TODO/<NNN>-<slug>.md`)
+4. Delete the detail file at the extracted path via Bash (`rm <path>`)
 5. Confirm deletion to the user
 
 **Note:** Do NOT renumber remaining todos or update the counter. Numbers are permanent identifiers.
@@ -277,8 +284,9 @@ When a user references a todo, they may use:
 ## File format rules
 
 - **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, and the `<!-- next: N -->` counter comment. No detail sections.
-- **`TODO/<NNN>-<slug>.md`** contains a single todo's detail section, starting with `## #<NNN> <Title>`. One file per todo.
-- The `TODO/` directory is a sibling of `TODO.md` (same parent directory).
+- **`TODO/<NNN>-<slug>.md`** contains an open todo's detail section, starting with `## #<NNN> <Title>`. One file per todo.
+- **`TODO/DONE/<NNN>-<slug>.md`** contains a completed todo's detail section. When a todo is marked done, its file is moved from `TODO/` to `TODO/DONE/`.
+- The `TODO/` directory is a sibling of `TODO.md` (same parent directory). `TODO/DONE/` is a subdirectory of `TODO/`.
 - Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both file links and filenames.
 - Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
 - Subsection order within a detail file:
@@ -315,3 +323,11 @@ If `TODO.md` exists and contains bullet lines (`- [`) instead of a table, migrat
 5. Inform the user: "Migrated TODO.md index to numbered table format."
 
 Migration is idempotent — if the table format and counter already exist, skip.
+
+### Migration of done todos to DONE/ subfolder
+
+If `TODO.md` has rows with status `Done ✓` whose links still point to `TODO/<NNN>-<slug>.md` (not `TODO/DONE/`), migrate on the first operation:
+
+1. Create `TODO/DONE/` directory if it doesn't exist
+2. For each done row: move `TODO/<NNN>-<slug>.md` to `TODO/DONE/<NNN>-<slug>.md` and update the link in `TODO.md`
+3. Inform the user: "Moved N completed todo(s) to TODO/DONE/."

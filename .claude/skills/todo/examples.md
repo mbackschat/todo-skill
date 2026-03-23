@@ -47,14 +47,14 @@
 
 | No | Title | Priority | Status | Created | Changed |
 |----|-------|----------|--------|---------|---------|
-| 001 | [~~Fix login bug on OAuth flow~~](TODO/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
+| 001 | [~~Fix login bug on OAuth flow~~](TODO/DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
 | 002 | [Add unit tests for parser module](TODO/002-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-23 15:45 |
 
 ---
 <!-- next: 3 -->
 ```
 
-### `TODO/001-fix-login-bug-on-oauth-flow.md` — completed todo
+### `TODO/DONE/001-fix-login-bug-on-oauth-flow.md` — completed todo
 
 ```markdown
 ## #001 Fix login bug on OAuth flow
@@ -163,9 +163,9 @@ Examples:
 | 003 | [Add unit tests for parser module](TODO/003-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-22 11:00 |
 ```
 
-After marking done:
+After marking done (link updated to `TODO/DONE/`, file moved there):
 ```
-| 001 | [~~Fix login bug on OAuth flow~~](TODO/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
+| 001 | [~~Fix login bug on OAuth flow~~](TODO/DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
 ```
 
 ## Notes subsection format

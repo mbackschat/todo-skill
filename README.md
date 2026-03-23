@@ -31,8 +31,9 @@ This means the skill stays fast and context-efficient regardless of how many tod
 project/
   TODO.md                                    # Index: numbered table + counter
   TODO/
-    001-fix-login-bug-on-oauth-flow.md       # Detail for todo #001
-    002-add-unit-tests-for-parser-module.md  # Detail for todo #002
+    DONE/
+      001-fix-login-bug-on-oauth-flow.md     # Completed todo #001
+    002-add-unit-tests-for-parser-module.md  # Open todo #002
 ```
 
 ## Commands
@@ -54,7 +55,7 @@ project/
 - **Rich context** — captures error messages, file locations, related issues, and conversation context
 - **Actionable guidance** — each todo has a "How to work on this" section with step-by-step instructions
 - **Timestamped notes** — append notes as `####` subsections with `(@username)` attribution
-- **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim
+- **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim. The detail file is moved from `TODO/` to `TODO/DONE/` to keep the active directory clean
 - **Metadata** — creation datetime, folder, project, file location, status
 - **Flexible referencing** — reference todos by number (`/todo work 1`, `/todo work #001`) or by text (`/todo work csv parser`) — numbers are supported but optional
 - **Legacy migration** — automatically migrates existing bullet-list or single-file `TODO.md` to the numbered table format on first use
