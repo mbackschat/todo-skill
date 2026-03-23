@@ -62,6 +62,17 @@ project/
 - **Flexible referencing** — reference todos by number (`/todo work 1`, `/todo work #001`) or by text (`/todo work csv parser`) — numbers are supported but optional
 - **Legacy migration** — automatically migrates existing bullet-list or single-file `TODO.md` to the numbered table format on first use
 
+## Usage recommendation
+
+This skill writes `TODO.md` and `TODO/` directly into your project directory — right next to your code. The idea is to manage todos where the work happens, so every task carries full context about the specific project it belongs to.
+
+Whether you commit these files to git or treat them as local scratch files is up to you:
+
+- **Track in git** — useful for shared projects where teammates (or future you) should see what's open, what was tried, and how things were resolved. The Markdown format diffs cleanly and is readable on GitHub.
+- **Keep local only** — add `TODO.md` and `TODO/` to `.gitignore` if you just want a personal task list that lives alongside the code without cluttering the repo.
+
+Either way, the files are plain Markdown and always human-readable.
+
 ## Installation
 
 Copy the skill directory into your Claude Code skills directory:
