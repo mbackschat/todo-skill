@@ -6,8 +6,8 @@ A [Claude Code](https://claude.com/claude-code) skill that manages a local `TODO
 
 `/todo` gives you a structured, Markdown-based task list using a **split-file architecture**:
 
-- **`TODO.md`** — A lightweight index file containing only the bullet list of todos (summary, priority badge, anchor link)
-- **`TODO/<slug>.md`** — One file per todo with full metadata, context, step-by-step guidance, notes, and resolution
+- **`TODO.md`** — A lightweight index file containing a numbered table of todos (number, title, priority, status, dates) and an auto-incrementing counter
+- **`TODO/<NNN>-<slug>.md`** — One file per todo with full metadata, context, step-by-step guidance, notes, and resolution
 
 Human-readable, git-friendly, and designed so a future Claude session can pick up any todo and immediately know what to do.
 
@@ -17,11 +17,11 @@ A single `TODO.md` that contains both the task list and all detail sections has 
 
 The split-file architecture solves this:
 
-- **LIST** greps only bullet lines from `TODO.md` — never loads detail content
-- **WORK** reads only the single `TODO/<slug>.md` file it needs
+- **LIST** greps only table rows from `TODO.md` — never loads detail content
+- **WORK** reads only the single `TODO/<NNN>-<slug>.md` file it needs
 - **ADD / DONE / NOTE** use targeted edits on specific files — no need to read or load unrelated todos
 
-This means the skill stays fast and context-efficient regardless of how many todos you accumulate. A `TODO.md` with 50 items is just 50 bullet lines, not 50 full detail sections.
+This means the skill stays fast and context-efficient regardless of how many todos you accumulate. A `TODO.md` with 50 items is just a 50-row table, not 50 full detail sections.
 
 **Trade-off:** slightly more files on disk. But each file is small, independently readable, and diffs cleanly in git.
 
@@ -29,10 +29,10 @@ This means the skill stays fast and context-efficient regardless of how many tod
 
 ```
 project/
-  TODO.md                                # Index: bullet list only
+  TODO.md                                    # Index: numbered table + counter
   TODO/
-    fix-login-bug-on-oauth-flow.md       # Detail for todo 1
-    add-unit-tests-for-parser-module.md  # Detail for todo 2
+    001-fix-login-bug-on-oauth-flow.md       # Detail for todo #001
+    002-add-unit-tests-for-parser-module.md  # Detail for todo #002
 ```
 
 ## Commands
@@ -40,7 +40,7 @@ project/
 | Command | Description |
 |---------|-------------|
 | `/todo add <description>` | Add a new todo with context from the conversation |
-| `/todo list` | Show all todos with priority and status |
+| `/todo list` | Show all todos with number, priority, status, and dates |
 | `/todo done <# or title>` | Mark complete with a resolution summary |
 | `/todo work <# or title>` | Read the context and start working on it |
 | `/todo note <# or title> <text>` | Append a timestamped note |
@@ -48,14 +48,16 @@ project/
 
 ## Features
 
-- **Priority badges** — `🔴 High` / `🟡 Medium` / `🟢 Low`, filterable in the task list
+- **Auto-incrementing numbers** — each todo gets a permanent 3-digit number (`001`, `002`, ...) tracked by a counter in `TODO.md`
+- **Table index** — `TODO.md` shows todos in a table with No, Title, Priority, Status, Created, and Changed columns
+- **Priority badges** — `🔴 High` / `🟡 Medium` / `🟢 Low`, visible in the table
 - **Rich context** — captures error messages, file locations, related issues, and conversation context
 - **Actionable guidance** — each todo has a "How to work on this" section with step-by-step instructions
 - **Timestamped notes** — append notes as `####` subsections with `(@username)` attribution
 - **Resolution tracking** — when marking done, a resolution summary is generated from conversation context, with user notes preserved verbatim
 - **Metadata** — creation datetime, folder, project, file location, status
-- **Fuzzy matching** — reference todos by number or by text; `/todo work csv parser` finds "Fix CSV parser to support semicolon delimiters"
-- **Legacy migration** — automatically migrates existing single-file `TODO.md` to the split format on first use
+- **Flexible referencing** — reference todos by number (`/todo work 1`, `/todo work #001`) or by text (`/todo work csv parser`) — numbers are supported but optional
+- **Legacy migration** — automatically migrates existing bullet-list or single-file `TODO.md` to the numbered table format on first use
 
 ## Installation
 
@@ -78,16 +80,19 @@ Then use `/todo` in any Claude Code session.
 
 ## Tasks
 
-- [Fix rate limiter bypassing auth endpoints](#fix-rate-limiter-bypassing-auth-endpoints) 🔴 High
-- [Add dark mode to settings](#add-dark-mode-to-settings) 🟡 Medium
+| No | Title | Priority | Status | Created | Changed |
+|----|-------|----------|--------|---------|---------|
+| 001 | [Fix rate limiter bypassing auth endpoints](#001-fix-rate-limiter-bypassing-auth-endpoints) | 🔴 High | Open | 2026-03-22 | 2026-03-22 |
+| 002 | [Add dark mode to settings](#002-add-dark-mode-to-settings) | 🟡 Medium | Open | 2026-03-22 | 2026-03-22 |
 
 ---
+<!-- next: 3 -->
 ```
 
-**`TODO/fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
+**`TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
 
 ```markdown
-## Fix rate limiter bypassing auth endpoints
+## #001 Fix rate limiter bypassing auth endpoints
 
 The rate limiter skips `/auth/` routes, allowing brute-force attacks.
 
@@ -130,21 +135,21 @@ Claude: [reads the file, investigates the issue]
 
 You:  /todo add Fix CSV parser to support semicolon delimiters — critical for EU customers, P1
 
-Claude: Added todo "Fix CSV parser to support semicolon delimiters" 🔴 High
+Claude: Added todo #001 "Fix CSV parser to support semicolon delimiters" 🔴 High
         with context from our investigation (file location, root cause, etc.)
 ```
 
 ```
 You:  /todo note csv parser Alice confirmed we also need tab-delimited support for the Japan team
 
-Claude: Added note to "Fix CSV parser to support semicolon delimiters".
+Claude: Added note to #001 "Fix CSV parser to support semicolon delimiters".
 ```
 
 ```
-You:  /todo work csv parser
+You:  /todo work 1
 
 Claude: [displays the full context, metadata, and guidance]
-        I'm ready to work on "Fix CSV parser to support semicolon delimiters".
+        I'm ready to work on #001 "Fix CSV parser to support semicolon delimiters".
         Based on the context above, here's my plan:
         1. Refactor the delimiter to be configurable...
         2. ...
@@ -153,20 +158,20 @@ Claude: [displays the full context, metadata, and guidance]
 ```
 
 ```
-You:  /todo done csv parser Ended up using a delimiter auto-detection approach instead of config
+You:  /todo done 1 Ended up using a delimiter auto-detection approach instead of config
 
-Claude: Marked "Fix CSV parser to support semicolon delimiters" as done ✓
+Claude: Marked #001 "Fix CSV parser to support semicolon delimiters" as done ✓
         Resolution recorded with implementation details from this session.
 ```
 
 ```
 You:  /todo list
 
-Claude: Open todos in TODO.md:
+Claude: Todos in TODO.md:
 
-          #  Title                                              Priority   Status
-          1  Fix CSV parser to support semicolon delimiters     🔴 High    Done ✓
-          2  Add retry logic to webhook delivery                🟡 Medium  Open
+          No   Title                                              Priority   Status    Created      Changed
+          001  Fix CSV parser to support semicolon delimiters     🔴 High    Done ✓    2026-03-22   2026-03-22
+          002  Add retry logic to webhook delivery                🟡 Medium  Open      2026-03-22   2026-03-22
 ```
 
 Each todo captures enough context that a future Claude session — or another developer — can pick it up and immediately know what to do, why, and how.

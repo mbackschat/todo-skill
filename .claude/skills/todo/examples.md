@@ -1,9 +1,9 @@
 # TODO Skill — Format Templates and Examples
 
-## Detail file template (`TODO/<slug>.md`)
+## Detail file template (`TODO/<NNN>-<slug>.md`)
 
 ```markdown
-## <Title>
+## #<NNN> <Title>
 
 <One-sentence description of what needs to be done and why.>
 
@@ -45,16 +45,19 @@
 
 ## Tasks
 
-- [~~Fix login bug on OAuth flow~~](#fix-login-bug-on-oauth-flow) 🔴 High ✓
-- [Add unit tests for parser module](#add-unit-tests-for-parser-module) 🟢 Low
+| No | Title | Priority | Status | Created | Changed |
+|----|-------|----------|--------|---------|---------|
+| 001 | [~~Fix login bug on OAuth flow~~](#001-fix-login-bug-on-oauth-flow) | 🔴 High | Done ✓ | 2026-03-22 | 2026-03-22 |
+| 002 | [Add unit tests for parser module](#002-add-unit-tests-for-parser-module) | 🟢 Low | Open | 2026-03-22 | 2026-03-23 |
 
 ---
+<!-- next: 3 -->
 ```
 
-### `TODO/fix-login-bug-on-oauth-flow.md` — completed todo
+### `TODO/001-fix-login-bug-on-oauth-flow.md` — completed todo
 
 ```markdown
-## Fix login bug on OAuth flow
+## #001 Fix login bug on OAuth flow
 
 OAuth login silently fails when the provider returns a `state` mismatch; users see a blank screen.
 
@@ -105,10 +108,10 @@ The root cause was a 30-second TTL on the session state key in Redis, which expi
 ***User note:*** turned out to be a race condition in the session store, not the OAuth library itself
 ```
 
-### `TODO/add-unit-tests-for-parser-module.md` — open todo with notes
+### `TODO/002-add-unit-tests-for-parser-module.md` — open todo with notes
 
 ```markdown
-## Add unit tests for parser module
+## #002 Add unit tests for parser module
 
 The parser has zero test coverage; any refactor risks silent regressions.
 
@@ -147,22 +150,22 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 (@alice) Low priority but would be nice to have before the Q2 release.
 ```
 
-## Bullet line format
+## Table row format
 
 ```
-- [<summary>](#<slug>) <priority-badge-if-any>
+| <NNN> | [<summary>](#<NNN>-<slug>) | <priority-badge-or-empty> | <status> | <created-date> | <changed-date> |
 ```
 
 Examples:
 ```
-- [Fix login bug on OAuth flow](#fix-login-bug-on-oauth-flow) 🔴 High
-- [Refactor database connection pool](#refactor-database-connection-pool)
-- [Add unit tests for parser module](#add-unit-tests-for-parser-module) 🟢 Low
+| 001 | [Fix login bug on OAuth flow](#001-fix-login-bug-on-oauth-flow) | 🔴 High | Open | 2026-03-22 | 2026-03-22 |
+| 002 | [Refactor database connection pool](#002-refactor-database-connection-pool) | | Open | 2026-03-22 | 2026-03-22 |
+| 003 | [Add unit tests for parser module](#003-add-unit-tests-for-parser-module) | 🟢 Low | Open | 2026-03-22 | 2026-03-22 |
 ```
 
 After marking done:
 ```
-- [~~Fix login bug on OAuth flow~~](#fix-login-bug-on-oauth-flow) 🔴 High ✓
+| 001 | [~~Fix login bug on OAuth flow~~](#001-fix-login-bug-on-oauth-flow) | 🔴 High | Done ✓ | 2026-03-22 | 2026-03-22 |
 ```
 
 ## Notes subsection format
@@ -178,3 +181,14 @@ Each note is a `####` subheading under `### Notes`:
 
 <Optional: generated context paragraph without (@username) prefix>
 ```
+
+## Counter format
+
+The counter is an HTML comment at the end of `TODO.md`, after the `---` separator:
+
+```markdown
+---
+<!-- next: 3 -->
+```
+
+The counter tracks the next number to assign. It is incremented each time a todo is added and never decremented (even when todos are removed).

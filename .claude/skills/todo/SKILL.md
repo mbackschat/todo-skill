@@ -10,20 +10,20 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 Manage a structured, Markdown-based task list using a **split-file architecture**:
 
-- **`TODO.md`** — A lightweight index containing only the bullet list of todos
-- **`TODO/`** — A sibling directory where each todo has its own `<slug>.md` file with full context, metadata, and guidance
+- **`TODO.md`** — A lightweight index containing a numbered table of todos and a counter
+- **`TODO/`** — A sibling directory where each todo has its own `<NNN>-<slug>.md` file with full context, metadata, and guidance
 
 ```
 project/
-  TODO.md                                # Index: bullet list only
+  TODO.md                                    # Index: numbered table + counter
   TODO/
-    fix-login-bug-on-oauth-flow.md       # Detail for todo 1
-    add-unit-tests-for-parser-module.md  # Detail for todo 2
+    001-fix-login-bug-on-oauth-flow.md       # Detail for todo #001
+    002-add-unit-tests-for-parser-module.md  # Detail for todo #002
 ```
 
-This split keeps todo details out of Claude's context window when they aren't needed. LIST only greps bullet lines; WORK reads a single detail file; write operations use targeted edits.
+This split keeps todo details out of Claude's context window when they aren't needed. LIST only greps table rows; WORK reads a single detail file; write operations use targeted edits.
 
-Current todo count: !`grep -c "^- \[" TODO.md 2>/dev/null || echo "0 (no TODO.md)"`
+Current todo count: !`grep -c "^| [0-9]" TODO.md 2>/dev/null || echo "0 (no TODO.md)"`
 
 ---
 
@@ -44,23 +44,28 @@ Determine the operation from the user's arguments or phrasing:
 
 ## ADD — Adding a new todo
 
-### Step 1: Build the anchor slug
+### Step 1: Allocate the next number
+
+Read `TODO.md` and extract the counter from the `<!-- next: N -->` comment at the end of the file. If `TODO.md` doesn't exist, start at `1`. Pad the number to 3 digits (e.g. `1` → `001`, `42` → `042`).
+
+### Step 2: Build the anchor slug
 
 Create a URL-safe anchor slug from the title:
 - Lowercase, replace spaces with `-`, strip special characters
-- Example: "Fix login bug" → `fix-login-bug`
-- If a slug already exists (check `TODO.md` bullet lines and files in `TODO/`), append `-2`, `-3`, etc.
+- Prepend the 3-digit number: `<NNN>-<title-slug>`
+- Example: number 3, title "Fix login bug" → `003-fix-login-bug`
+- If a slug already exists (check `TODO.md` table rows and files in `TODO/`), append `-2`, `-3`, etc. to the title portion
 
-### Step 2: Determine priority/relevancy
+### Step 3: Determine priority/relevancy
 
 If the user provided a priority or relevancy level (e.g. "high priority", "P1", "low", "critical", "nice-to-have"), normalize it to one of:
 - `🔴 High` / `🟡 Medium` / `🟢 Low`
 
 Map common variants: P1/critical/urgent → High, P2/normal → Medium, P3/nice-to-have/low → Low.
 
-If no priority given, omit the badge entirely (do not default to Medium).
+If no priority given, omit the badge entirely (leave the Priority cell empty).
 
-### Step 3: Collect metadata
+### Step 4: Collect metadata
 
 Gather from the current context:
 - **Created**: current date and time (ISO 8601, e.g. `2026-03-22 14:30`). To get the current time, run `date '+%Y-%m-%d %H:%M'` via Bash.
@@ -69,13 +74,13 @@ Gather from the current context:
 - **File / Location**: if the todo is about a specific file, function, or line range, record it
 - Any other relevant context from the conversation (related issue numbers, PR links, error messages, commands that triggered this, etc.)
 
-### Step 4: Compose the detail file content
+### Step 5: Compose the detail file content
 
 Before writing anything, compose the full detail file content while you have conversation context. This is the most important step — the detail file must be **self-contained and actionable** for a future Claude session with zero prior context.
 
-The detail file (`TODO/<slug>.md`) must include these sections:
+The detail file (`TODO/<NNN>-<slug>.md`) must include these sections:
 
-**`## <Title>`** — one-sentence description of what needs to be done and why.
+**`## #<NNN> <Title>`** — one-sentence description of what needs to be done and why.
 
 **`### Metadata`** — table with Created, Folder, Project, Priority, Status, Location fields.
 
@@ -96,15 +101,16 @@ The detail file (`TODO/<slug>.md`) must include these sections:
 
 **Do not summarize or abbreviate.** If the conversation includes a 10-line stack trace, include the full stack trace. If three files were investigated, list all three with what was found in each. The goal is zero information loss between the current conversation and the detail file.
 
-### Step 5: Write the files
+### Step 6: Write the files
 
 1. Create `TODO/` directory if it doesn't exist (`mkdir -p TODO`)
 2. If `TODO.md` doesn't exist, create it with the skeleton below
-3. Use `Edit` to insert the bullet line before the `---` separator in `TODO.md`:
+3. Use `Edit` to insert the table row before the empty line preceding the `---` separator in `TODO.md`:
    ```
-   - [<summary>](#<slug>) <priority-badge-if-any>
+   | <NNN> | [<summary>](#<NNN>-<slug>) | <priority-badge-or-empty> | Open | <date> | <date> |
    ```
-4. Use `Write` to create `TODO/<slug>.md` with the composed detail content
+4. Use `Edit` to update the counter: replace `<!-- next: N -->` with `<!-- next: N+1 -->`
+5. Use `Write` to create `TODO/<NNN>-<slug>.md` with the composed detail content
 
 `TODO.md` skeleton (used only when creating a new file):
 ```markdown
@@ -112,26 +118,30 @@ The detail file (`TODO/<slug>.md`) must include these sections:
 
 ## Tasks
 
+| No | Title | Priority | Status | Created | Changed |
+|----|-------|----------|--------|---------|---------|
+
 ---
+<!-- next: 1 -->
 ```
 
-**Note:** When adding the first todo to a freshly created file, insert the bullet item on a blank line directly above the `---` separator. Never leave placeholder comments in the file.
+**Note:** When adding the first todo, insert the table row after the header separator line (`|----|-...`). The `Created` and `Changed` columns use `YYYY-MM-DD` date format (date only, no time — the detail file has the full datetime).
 
 ---
 
 ## LIST — Showing todos
 
 1. Check if `TODO.md` exists; if not, say "No TODO.md found."
-2. Use `Grep` with pattern `^- \[` on `TODO.md` to extract only the bullet lines — do NOT read the whole file
-3. Parse each bullet line to extract: title, priority badge, done status (strikethrough + checkmark)
+2. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to extract only the table data rows — do NOT read the whole file
+3. Parse each row to extract: number, title, priority badge, status
 4. Display a formatted summary:
 
 ```
-Open todos in TODO.md:
+Todos in TODO.md:
 
-  #  Title                                   Priority   Status
-  1  Fix login bug on OAuth flow             🔴 High    Done ✓
-  2  Add unit tests for parser module        🟢 Low     Open
+  No   Title                                   Priority   Status    Created      Changed
+  001  Fix login bug on OAuth flow             🔴 High    Done ✓    2026-03-22   2026-03-22
+  002  Add unit tests for parser module        🟢 Low     Open      2026-03-22   2026-03-23
 ```
 
 Group by status (Open first, then Done). If the file doesn't exist, say so.
@@ -142,15 +152,20 @@ Group by status (Open first, then Done). If the file doesn't exist, say so.
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link `(#<slug>)`.
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link `(#<NNN>-<slug>)`.
+
+The user may refer to a todo by its number (e.g. `1`, `001`, or `#001`) or by title text (e.g. `csv parser`). Try number match first, then fall back to fuzzy title match.
 
 ### Step 2: Update TODO.md
 
-Use `Edit` to add `~~strikethrough~~` around the link text of the matching bullet and append ` ✓`.
+Use `Edit` to modify the matching table row:
+1. Add `~~strikethrough~~` around the link text
+2. Change the Status cell to `Done ✓`
+3. Update the Changed date to today's date
 
 ### Step 3: Update the detail file
 
-Use `Edit` on `TODO/<slug>.md` to:
+Use `Edit` on `TODO/<NNN>-<slug>.md` to:
 1. Change `Status` from `Open` to `Done`
 2. Add `| Completed | <datetime> |` row to the Metadata table
 3. Append the Resolution subsection at the end of the file
@@ -185,11 +200,11 @@ Resolution format:
 
 ## WORK — Starting work on a todo
 
-1. Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines
+1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
 2. Find the matching todo (by number or fuzzy title match)
-3. Extract the slug from the anchor link `(#<slug>)`
-4. Read `TODO/<slug>.md` and display the full detail section to the user
-5. Say: "I'm ready to work on **<title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
+3. Extract the slug from the anchor link `(#<NNN>-<slug>)`
+4. Read `TODO/<NNN>-<slug>.md` and display the full detail section to the user
+5. Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
 6. Proceed to implement or investigate as guided by the section.
 
 ---
@@ -198,13 +213,13 @@ Resolution format:
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link.
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link.
 
 ### Step 2: Compose and write the note
 
 Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoami`.
 
-Use `Edit` on `TODO/<slug>.md` to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
+Use `Edit` on `TODO/<NNN>-<slug>.md` to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
 
 ```markdown
 #### <Short summary, 3-8 words> (<datetime>)
@@ -222,39 +237,56 @@ After the user's verbatim text, add a generated context paragraph (without `(@us
 
 The generated paragraph should capture specifics, not summaries. If you investigated a file and found the relevant line, include the file path and line number. If a test failed with a specific error, include the error.
 
+### Step 3: Update the Changed date in TODO.md
+
+Use `Edit` to update the Changed column of the matching table row to today's date.
+
 **Rules:**
 - Always mark user-provided text with `(@username)` at the start
 - If the user provides no text but asks to "add a note", prompt them for what to write
 - If the user provides text but no conversation context is relevant, omit the generated paragraph
 - Notes are append-only — never edit or remove existing notes
 
-`TODO.md` is not modified for NOTE operations.
-
 ---
 
 ## REMOVE — Deleting a todo
 
-1. Use `Grep` with pattern `^- \[` on `TODO.md` to get the bullet lines
+1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
 2. Find the matching todo and extract the slug
-3. Edit `TODO.md` to remove the bullet line
-4. Delete `TODO/<slug>.md` via Bash (`rm TODO/<slug>.md`)
+3. Edit `TODO.md` to remove the table row
+4. Delete `TODO/<NNN>-<slug>.md` via Bash (`rm TODO/<NNN>-<slug>.md`)
 5. Confirm deletion to the user
+
+**Note:** Do NOT renumber remaining todos or update the counter. Numbers are permanent identifiers.
+
+---
+
+## Matching todos by number or text
+
+When a user references a todo, they may use:
+- A number: `1`, `001`, `#1`, `#001` — match against the No column
+- Title text: `csv parser`, `login bug` — fuzzy match against the Title column
+
+**Matching rules:**
+1. Try numeric match first: strip `#` prefix, convert to integer, pad to 3 digits, find the row starting with `| <NNN> |`
+2. If no numeric match or the argument contains non-numeric characters, fall back to fuzzy title match using case-insensitive substring search
+3. If multiple matches found, show the matches and ask the user to be more specific
 
 ---
 
 ## File format rules
 
-- **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` bullet list, and the `---` separator. No detail sections.
-- **`TODO/<slug>.md`** contains a single todo's detail section, starting with `## <Title>`. One file per todo.
+- **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, and the `<!-- next: N -->` counter comment. No detail sections.
+- **`TODO/<NNN>-<slug>.md`** contains a single todo's detail section, starting with `## #<NNN> <Title>`. One file per todo.
 - The `TODO/` directory is a sibling of `TODO.md` (same parent directory).
-- Slug derivation: lowercase, replace spaces with `-`, strip special characters. Used for both anchor links and filenames.
+- Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both anchor links and filenames.
+- Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
 - Subsection order within a detail file:
   1. `### Metadata`
   2. `### Context`
   3. `### How to work on this`
   4. `### Notes` (last for open todos — easy to append to)
   5. `### Resolution` (only when done — always the very last subsection)
-- Never renumber or reorder existing bullet entries; always append new ones
 - Preserve all existing content when editing
 
 For complete format templates and examples, see [examples.md](examples.md).
@@ -268,8 +300,18 @@ If `TODO.md` exists and contains `## ` headings after the `---` separator, it us
 1. Read the full `TODO.md`
 2. Split content after the `---` separator on `## ` headings to extract each detail section
 3. Create `TODO/` directory
-4. For each detail section, derive the slug from the heading and write `TODO/<slug>.md`
-5. Truncate `TODO.md` to keep only `# TODO`, `## Tasks`, the bullet list, and the `---` separator
+4. For each detail section, assign incrementing numbers starting at `001`, derive the slug from the heading, and write `TODO/<NNN>-<slug>.md` (updating the heading to `## #<NNN> <Title>`)
+5. Replace the bullet list with a table and add the `<!-- next: N+1 -->` counter
 6. Inform the user: "Migrated N todos to split-file format (`TODO/` directory created)."
 
-Migration is idempotent — if `TODO/` already exists with matching files, skip.
+### Migration from bullet-list index format
+
+If `TODO.md` exists and contains bullet lines (`- [`) instead of a table, migrate the index:
+
+1. Parse each bullet line to extract: title, slug, priority, done status
+2. Assign incrementing numbers starting at `001`
+3. Rename each `TODO/<old-slug>.md` to `TODO/<NNN>-<old-slug>.md` and update the heading to `## #<NNN> <Title>`
+4. Replace the bullet list with the table format and add the counter
+5. Inform the user: "Migrated TODO.md index to numbered table format."
+
+Migration is idempotent — if the table format and counter already exist, skip.
