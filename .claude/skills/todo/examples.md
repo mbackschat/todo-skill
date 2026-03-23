@@ -1,6 +1,6 @@
 # TODO Skill — Format Templates and Examples
 
-## Detail file template (`<NNN>-<slug>.md`)
+## Detail file template (`TODO/<NNN>-<slug>.md`)
 
 ```markdown
 ## #<NNN> <Title>
@@ -47,14 +47,14 @@
 
 | No | Title | Priority | Status | Created | Changed |
 |----|-------|----------|--------|---------|---------|
-| 001 | [~~Fix login bug on OAuth flow~~](DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
-| 002 | [Add unit tests for parser module](002-add-unit-tests-for-parser-module.md) | 🟢 Low | Active | 2026-03-22 11:00 | 2026-03-23 16:00 |
+| 001 | [~~Fix login bug on OAuth flow~~](TODO/DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
+| 002 | [Add unit tests for parser module](TODO/002-add-unit-tests-for-parser-module.md) | 🟢 Low | Active | 2026-03-22 11:00 | 2026-03-23 16:00 |
 
 ---
 <!-- next: 3 -->
 ```
 
-### `002-add-unit-tests-for-parser-module.md` — active todo (work started)
+### `TODO/002-add-unit-tests-for-parser-module.md` — active todo (work started)
 
 ```markdown
 ## #002 Add unit tests for parser module
@@ -104,7 +104,7 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 Plan: read all files in `src/parser/`, create `tests/parser/` directory mirroring the source structure, write unit tests covering happy path CSV/JSON parsing, empty input, malformed input, and UTF-8 encoding edge cases. Will also add semicolon delimiter tests per the note above. Verify with `npm test`.
 ```
 
-### `DONE/001-fix-login-bug-on-oauth-flow.md` — completed todo
+### `TODO/DONE/001-fix-login-bug-on-oauth-flow.md` — completed todo
 
 ```markdown
 ## #001 Fix login bug on OAuth flow
@@ -169,19 +169,19 @@ The root cause was a 30-second TTL on the session state key in Redis, which expi
 ## Table row format
 
 ```
-| <NNN> | [<summary>](<NNN>-<slug>.md) | <priority-badge-or-empty> | <status> | <created-datetime> | <changed-datetime> |
+| <NNN> | [<summary>](TODO/<NNN>-<slug>.md) | <priority-badge-or-empty> | <status> | <created-datetime> | <changed-datetime> |
 ```
 
 Examples:
 ```
-| 001 | [Fix login bug on OAuth flow](001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
-| 002 | [Refactor database connection pool](002-refactor-database-connection-pool.md) | | Active | 2026-03-22 10:15 | 2026-03-22 14:00 |
-| 003 | [Add unit tests for parser module](003-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-22 11:00 |
+| 001 | [Fix login bug on OAuth flow](TODO/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
+| 002 | [Refactor database connection pool](TODO/002-refactor-database-connection-pool.md) | | Active | 2026-03-22 10:15 | 2026-03-22 14:00 |
+| 003 | [Add unit tests for parser module](TODO/003-add-unit-tests-for-parser-module.md) | 🟢 Low | Open | 2026-03-22 11:00 | 2026-03-22 11:00 |
 ```
 
-After marking done (link updated to `DONE/`, file moved there):
+After marking done (link updated to `TODO/DONE/`, file moved there):
 ```
-| 001 | [~~Fix login bug on OAuth flow~~](DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
+| 001 | [~~Fix login bug on OAuth flow~~](TODO/DONE/001-fix-login-bug-on-oauth-flow.md) | 🔴 High | Done ✓ | 2026-03-22 09:45 | 2026-03-22 17:30 |
 ```
 
 ## Notes subsection format

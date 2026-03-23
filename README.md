@@ -7,8 +7,8 @@ A [Claude Code](https://claude.com/claude-code) skill that manages a local `TODO
 `/todo` gives you a structured, Markdown-based task list using a **split-file architecture**:
 
 - **`TODO.md`** — A lightweight index file containing a numbered table of todos (number, title, priority, status, dates) and an auto-incrementing counter
-- **`<NNN>-<slug>.md`** — One file per todo (next to `TODO.md`) with full metadata, context, step-by-step guidance, notes, and resolution
-- **`DONE/`** — Completed todo files are moved here
+- **`TODO/<NNN>-<slug>.md`** — One file per todo (in a `TODO/` subdirectory) with full metadata, context, step-by-step guidance, notes, and resolution
+- **`TODO/DONE/`** — Completed todo files are moved here
 
 Human-readable, git-friendly, and designed so a future Claude session can pick up any todo and immediately know what to do.
 
@@ -31,9 +31,10 @@ This means the skill stays fast and context-efficient regardless of how many tod
 ```
 project/
   TODO.md                                    # Index: numbered table + counter
-  DONE/
-    001-fix-login-bug-on-oauth-flow.md       # Completed todo #001
-  002-add-unit-tests-for-parser-module.md    # Open todo #002
+  TODO/
+    DONE/
+      001-fix-login-bug-on-oauth-flow.md     # Completed todo #001
+    002-add-unit-tests-for-parser-module.md  # Open todo #002
 ```
 
 ## Commands
@@ -84,14 +85,14 @@ Then use `/todo` in any Claude Code session.
 
 | No | Title | Priority | Status | Created | Changed |
 |----|-------|----------|--------|---------|---------|
-| 001 | [Fix rate limiter bypassing auth endpoints](001-fix-rate-limiter-bypassing-auth-endpoints.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
-| 002 | [Add dark mode to settings](002-add-dark-mode-to-settings.md) | 🟡 Medium | Open | 2026-03-22 10:30 | 2026-03-22 10:30 |
+| 001 | [Fix rate limiter bypassing auth endpoints](TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
+| 002 | [Add dark mode to settings](TODO/002-add-dark-mode-to-settings.md) | 🟡 Medium | Open | 2026-03-22 10:30 | 2026-03-22 10:30 |
 
 ---
 <!-- next: 3 -->
 ```
 
-**`001-fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
+**`TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
 
 ```markdown
 ## #001 Fix rate limiter bypassing auth endpoints

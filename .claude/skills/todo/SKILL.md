@@ -11,15 +11,16 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 Manage a structured, Markdown-based task list using a **split-file architecture**:
 
 - **`TODO.md`** — A lightweight index containing a numbered table of todos and a counter
-- **`<NNN>-<slug>.md`** — One file per todo, living next to `TODO.md`, with full context, metadata, and guidance
-- **`DONE/`** — A sibling directory of `TODO.md` where completed todo files are moved
+- **`TODO/<NNN>-<slug>.md`** — One file per todo, in a `TODO/` subdirectory, with full context, metadata, and guidance
+- **`TODO/DONE/`** — Completed todo files are moved here
 
 ```
 project/
   TODO.md                                    # Index: numbered table + counter
-  DONE/
-    001-fix-login-bug-on-oauth-flow.md       # Completed todo #001
-  002-add-unit-tests-for-parser-module.md    # Open todo #002
+  TODO/
+    DONE/
+      001-fix-login-bug-on-oauth-flow.md     # Completed todo #001
+    002-add-unit-tests-for-parser-module.md  # Open todo #002
 ```
 
 This split keeps todo details out of Claude's context window when they aren't needed. LIST only greps table rows; WORK reads a single detail file; write operations use targeted edits.
@@ -55,7 +56,7 @@ Create a URL-safe anchor slug from the title:
 - Lowercase, replace spaces with `-`, strip special characters
 - Prepend the 3-digit number: `<NNN>-<title-slug>`
 - Example: number 3, title "Fix login bug" → `003-fix-login-bug`
-- If a slug already exists (check `TODO.md` table rows and sibling `<NNN>-<slug>.md` files), append `-2`, `-3`, etc. to the title portion
+- If a slug already exists (check `TODO.md` table rows and `TODO/<NNN>-<slug>.md` files), append `-2`, `-3`, etc. to the title portion
 
 ### Step 3: Determine priority/relevancy
 
@@ -107,10 +108,11 @@ The detail file (`<NNN>-<slug>.md`) must include these sections:
 1. If `TODO.md` doesn't exist, create it with the skeleton below
 2. Use `Edit` to insert the table row before the empty line preceding the `---` separator in `TODO.md`:
    ```
-   | <NNN> | [<summary>](<NNN>-<slug>.md) | <priority-badge-or-empty> | Open | <datetime> | <datetime> |
+   | <NNN> | [<summary>](TODO/<NNN>-<slug>.md) | <priority-badge-or-empty> | Open | <datetime> | <datetime> |
    ```
 3. Use `Edit` to update the counter: replace `<!-- next: N -->` with `<!-- next: N+1 -->`
-4. Use `Write` to create `<NNN>-<slug>.md` (next to `TODO.md`) with the composed detail content
+4. Create the `TODO/` directory if it doesn't exist: `mkdir -p TODO`
+5. Use `Write` to create `TODO/<NNN>-<slug>.md` with the composed detail content
 
 `TODO.md` skeleton (used only when creating a new file):
 ```markdown
@@ -153,7 +155,7 @@ Group by status (Active first, then Open, then Done). If the file doesn't exist,
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the file link `(<NNN>-<slug>.md)`.
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the file link `(TODO/<NNN>-<slug>.md)`.
 
 The user may refer to a todo by its number (e.g. `1`, `001`, or `#001`) or by title text (e.g. `csv parser`). Try number match first, then fall back to fuzzy title match.
 
@@ -166,7 +168,7 @@ Use `Edit` to modify the matching table row:
 
 ### Step 3: Update the detail file
 
-Use `Edit` on `<NNN>-<slug>.md` to:
+Use `Edit` on `TODO/<NNN>-<slug>.md` to:
 1. Change `Status` from `Open` or `Active` to `Done`
 2. Add `| Completed | <datetime> |` row to the Metadata table
 3. Append the `#### Findings when Done` subsection under `### Resolution`
@@ -194,11 +196,11 @@ Findings when Done format:
 ***User note:*** <verbatim user-provided text, if any>
 ```
 
-### Step 4: Move the detail file to DONE/
+### Step 4: Move the detail file to TODO/DONE/
 
-1. Create the `DONE/` directory if it doesn't exist: `mkdir -p DONE`
-2. Move the file via Bash: `mv <NNN>-<slug>.md DONE/<NNN>-<slug>.md`
-3. Use `Edit` on `TODO.md` to update the link in the matching table row from `(<NNN>-<slug>.md)` to `(DONE/<NNN>-<slug>.md)`
+1. Create the `TODO/DONE/` directory if it doesn't exist: `mkdir -p TODO/DONE`
+2. Move the file via Bash: `mv TODO/<NNN>-<slug>.md TODO/DONE/<NNN>-<slug>.md`
+3. Use `Edit` on `TODO.md` to update the link in the matching table row from `(TODO/<NNN>-<slug>.md)` to `(TODO/DONE/<NNN>-<slug>.md)`
 
 **Rules:**
 - Always generate a resolution from conversation context. If no context is available, write "No conversation context available — marked done manually."
@@ -211,7 +213,7 @@ Findings when Done format:
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `<NNN>-<slug>.md` or `DONE/<NNN>-<slug>.md`).
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`).
 
 ### Step 2: Read and display the detail file
 
@@ -225,7 +227,7 @@ Use `Edit` to modify the matching table row:
 
 ### Step 4: Update the detail file
 
-Use `Edit` on `<NNN>-<slug>.md` to:
+Use `Edit` on `TODO/<NNN>-<slug>.md` to:
 1. Change `Status` from `Open` to `Active`
 2. Append the `### Resolution` section at the end of the file (if not already present) with a `#### Work Context` subsection:
 
@@ -246,8 +248,8 @@ If the `### Resolution` section already exists (e.g. from a previous work sessio
 Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section. Proceed to implement or investigate as guided by the section.
 
 **Rules:**
-- WORK does **not** mark a todo as done and does **not** move the file to `DONE/`
-- The todo stays in its original location next to `TODO.md`
+- WORK does **not** mark a todo as done and does **not** move the file to `TODO/DONE/`
+- The todo stays in `TODO/`
 
 ---
 
@@ -255,7 +257,7 @@ Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here'
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `<NNN>-<slug>.md` or `DONE/<NNN>-<slug>.md`).
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`).
 
 ### Step 2: Compose and write the note
 
@@ -294,7 +296,7 @@ Use `Edit` to update the Changed column of the matching table row to the current
 ## REMOVE — Deleting a todo
 
 1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
-2. Find the matching todo and extract the file path from the link (may be `<NNN>-<slug>.md` or `DONE/<NNN>-<slug>.md`)
+2. Find the matching todo and extract the file path from the link (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`)
 3. Edit `TODO.md` to remove the table row
 4. Delete the detail file at the extracted path via Bash (`rm <path>`)
 5. Confirm deletion to the user
@@ -319,9 +321,9 @@ When a user references a todo, they may use:
 ## File format rules
 
 - **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, and the `<!-- next: N -->` counter comment. No detail sections.
-- **`<NNN>-<slug>.md`** contains an open todo's detail section, starting with `## #<NNN> <Title>`. One file per todo, living next to `TODO.md`.
-- **`DONE/<NNN>-<slug>.md`** contains a completed todo's detail section. When a todo is marked done, its file is moved to the `DONE/` directory.
-- Detail files (`<NNN>-<slug>.md`) live in the same directory as `TODO.md`. `DONE/` is a sibling directory of `TODO.md`.
+- **`TODO/<NNN>-<slug>.md`** contains an open todo's detail section, starting with `## #<NNN> <Title>`. One file per todo, in the `TODO/` subdirectory.
+- **`TODO/DONE/<NNN>-<slug>.md`** contains a completed todo's detail section. When a todo is marked done, its file is moved from `TODO/` to `TODO/DONE/`.
+- Detail files live in `TODO/`, a subdirectory next to `TODO.md`. `DONE/` is a subdirectory inside `TODO/`.
 - Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both file links and filenames.
 - Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
 - Status values: `Open` → `Active` (set by work) → `Done` (set by done). In `TODO.md` the done status is `Done ✓`.
@@ -345,8 +347,9 @@ If `TODO.md` exists and contains `## ` headings after the `---` separator, it us
 
 1. Read the full `TODO.md`
 2. Split content after the `---` separator on `## ` headings to extract each detail section
-3. For each detail section, assign incrementing numbers starting at `001`, derive the slug from the heading, and write `<NNN>-<slug>.md` next to `TODO.md` (updating the heading to `## #<NNN> <Title>`)
-4. Replace the bullet list with a table and add the `<!-- next: N+1 -->` counter
+3. Create `TODO/` directory: `mkdir -p TODO`
+4. For each detail section, assign incrementing numbers starting at `001`, derive the slug from the heading, and write `TODO/<NNN>-<slug>.md` (updating the heading to `## #<NNN> <Title>`)
+5. Replace the bullet list with a table (links pointing to `TODO/<NNN>-<slug>.md`) and add the `<!-- next: N+1 -->` counter
 5. Inform the user: "Migrated N todos to split-file format."
 
 ### Migration from bullet-list index format
@@ -355,26 +358,27 @@ If `TODO.md` exists and contains bullet lines (`- [`) instead of a table, migrat
 
 1. Parse each bullet line to extract: title, slug, priority, done status
 2. Assign incrementing numbers starting at `001`
-3. Rename each `<old-slug>.md` to `<NNN>-<old-slug>.md` and update the heading to `## #<NNN> <Title>`
-4. Replace the bullet list with the table format and add the counter
+3. Create `TODO/` directory: `mkdir -p TODO`
+4. Move and rename each `<old-slug>.md` to `TODO/<NNN>-<old-slug>.md` and update the heading to `## #<NNN> <Title>`
+5. Replace the bullet list with the table format (links pointing to `TODO/<NNN>-<slug>.md`) and add the counter
 5. Inform the user: "Migrated TODO.md index to numbered table format."
 
 Migration is idempotent — if the table format and counter already exist, skip.
 
-### Migration of done todos to DONE/ folder
+### Migration of done todos to TODO/DONE/ folder
 
-If `TODO.md` has rows with status `Done ✓` whose links point to a file not in `DONE/`, migrate on the first operation:
+If `TODO.md` has rows with status `Done ✓` whose links point to a file not in `TODO/DONE/`, migrate on the first operation:
 
-1. Create `DONE/` directory if it doesn't exist
-2. For each done row: move `<NNN>-<slug>.md` to `DONE/<NNN>-<slug>.md` and update the link in `TODO.md`
-3. Inform the user: "Moved N completed todo(s) to DONE/."
+1. Create `TODO/DONE/` directory if it doesn't exist: `mkdir -p TODO/DONE`
+2. For each done row: move the file to `TODO/DONE/<NNN>-<slug>.md` and update the link in `TODO.md` to `(TODO/DONE/<NNN>-<slug>.md)`
+3. Inform the user: "Moved N completed todo(s) to TODO/DONE/."
 
-### Migration from TODO/ subfolder layout
+### Migration from flat layout
 
-If a `TODO/` directory exists as a sibling of `TODO.md` containing detail files, migrate to the flat layout:
+If detail files (`<NNN>-*.md`) exist as siblings of `TODO.md` (not inside `TODO/`), migrate to the subdirectory layout:
 
-1. Move all `TODO/*.md` files to the same directory as `TODO.md`
-2. If `TODO/DONE/` exists, move its contents to `DONE/` (create if needed) and remove `TODO/DONE/`
-3. Update all links in `TODO.md` from `TODO/<NNN>-<slug>.md` to `<NNN>-<slug>.md` and from `TODO/DONE/<NNN>-<slug>.md` to `DONE/<NNN>-<slug>.md`
-4. Remove the empty `TODO/` directory
-5. Inform the user: "Migrated from TODO/ subfolder to flat layout."
+1. Create `TODO/` directory: `mkdir -p TODO`
+2. Move all `<NNN>-*.md` files from `TODO.md`'s directory into `TODO/`
+3. If a `DONE/` directory exists as a sibling of `TODO.md`, create `TODO/DONE/`, move its contents there, and remove the empty `DONE/` directory
+4. Update all links in `TODO.md`: `(<NNN>-<slug>.md)` → `(TODO/<NNN>-<slug>.md)` and `(DONE/<NNN>-<slug>.md)` → `(TODO/DONE/<NNN>-<slug>.md)`
+5. Inform the user: "Migrated from flat layout to TODO/ subdirectory."
