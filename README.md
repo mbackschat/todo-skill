@@ -82,8 +82,8 @@ Then use `/todo` in any Claude Code session.
 
 | No | Title | Priority | Status | Created | Changed |
 |----|-------|----------|--------|---------|---------|
-| 001 | [Fix rate limiter bypassing auth endpoints](#001-fix-rate-limiter-bypassing-auth-endpoints) | 🔴 High | Open | 2026-03-22 | 2026-03-22 |
-| 002 | [Add dark mode to settings](#002-add-dark-mode-to-settings) | 🟡 Medium | Open | 2026-03-22 | 2026-03-22 |
+| 001 | [Fix rate limiter bypassing auth endpoints](TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md) | 🔴 High | Open | 2026-03-22 09:45 | 2026-03-22 09:45 |
+| 002 | [Add dark mode to settings](TODO/002-add-dark-mode-to-settings.md) | 🟡 Medium | Open | 2026-03-22 10:30 | 2026-03-22 10:30 |
 
 ---
 <!-- next: 3 -->
@@ -169,9 +169,9 @@ You:  /todo list
 
 Claude: Todos in TODO.md:
 
-          No   Title                                              Priority   Status    Created      Changed
-          001  Fix CSV parser to support semicolon delimiters     🔴 High    Done ✓    2026-03-22   2026-03-22
-          002  Add retry logic to webhook delivery                🟡 Medium  Open      2026-03-22   2026-03-22
+          No   Title                                              Priority   Status    Created            Changed
+          001  Fix CSV parser to support semicolon delimiters     🔴 High    Done ✓    2026-03-22 09:45   2026-03-22 14:30
+          002  Add retry logic to webhook delivery                🟡 Medium  Open      2026-03-22 11:00   2026-03-22 11:00
 ```
 
 Each todo captures enough context that a future Claude session — or another developer — can pick it up and immediately know what to do, why, and how.

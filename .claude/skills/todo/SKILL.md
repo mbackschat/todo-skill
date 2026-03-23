@@ -107,7 +107,7 @@ The detail file (`TODO/<NNN>-<slug>.md`) must include these sections:
 2. If `TODO.md` doesn't exist, create it with the skeleton below
 3. Use `Edit` to insert the table row before the empty line preceding the `---` separator in `TODO.md`:
    ```
-   | <NNN> | [<summary>](#<NNN>-<slug>) | <priority-badge-or-empty> | Open | <date> | <date> |
+   | <NNN> | [<summary>](TODO/<NNN>-<slug>.md) | <priority-badge-or-empty> | Open | <datetime> | <datetime> |
    ```
 4. Use `Edit` to update the counter: replace `<!-- next: N -->` with `<!-- next: N+1 -->`
 5. Use `Write` to create `TODO/<NNN>-<slug>.md` with the composed detail content
@@ -125,7 +125,7 @@ The detail file (`TODO/<NNN>-<slug>.md`) must include these sections:
 <!-- next: 1 -->
 ```
 
-**Note:** When adding the first todo, insert the table row after the header separator line (`|----|-...`). The `Created` and `Changed` columns use `YYYY-MM-DD` date format (date only, no time — the detail file has the full datetime).
+**Note:** When adding the first todo, insert the table row after the header separator line (`|----|-...`). The `Created` and `Changed` columns use `YYYY-MM-DD HH:MM` datetime format, matching the detail files.
 
 ---
 
@@ -140,8 +140,8 @@ The detail file (`TODO/<NNN>-<slug>.md`) must include these sections:
 Todos in TODO.md:
 
   No   Title                                   Priority   Status    Created      Changed
-  001  Fix login bug on OAuth flow             🔴 High    Done ✓    2026-03-22   2026-03-22
-  002  Add unit tests for parser module        🟢 Low     Open      2026-03-22   2026-03-23
+  001  Fix login bug on OAuth flow             🔴 High    Done ✓    2026-03-22 09:45   2026-03-22 17:30
+  002  Add unit tests for parser module        🟢 Low     Open      2026-03-22 11:00   2026-03-23 15:45
 ```
 
 Group by status (Open first, then Done). If the file doesn't exist, say so.
@@ -152,7 +152,7 @@ Group by status (Open first, then Done). If the file doesn't exist, say so.
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link `(#<NNN>-<slug>)`.
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the file link `(TODO/<NNN>-<slug>.md)`.
 
 The user may refer to a todo by its number (e.g. `1`, `001`, or `#001`) or by title text (e.g. `csv parser`). Try number match first, then fall back to fuzzy title match.
 
@@ -161,7 +161,7 @@ The user may refer to a todo by its number (e.g. `1`, `001`, or `#001`) or by ti
 Use `Edit` to modify the matching table row:
 1. Add `~~strikethrough~~` around the link text
 2. Change the Status cell to `Done ✓`
-3. Update the Changed date to today's date
+3. Update the Changed datetime to the current datetime
 
 ### Step 3: Update the detail file
 
@@ -202,7 +202,7 @@ Resolution format:
 
 1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
 2. Find the matching todo (by number or fuzzy title match)
-3. Extract the slug from the anchor link `(#<NNN>-<slug>)`
+3. Extract the slug from the file link `(TODO/<NNN>-<slug>.md)`
 4. Read `TODO/<NNN>-<slug>.md` and display the full detail section to the user
 5. Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section.
 6. Proceed to implement or investigate as guided by the section.
@@ -213,7 +213,7 @@ Resolution format:
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the anchor link.
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the file link.
 
 ### Step 2: Compose and write the note
 
@@ -239,7 +239,7 @@ The generated paragraph should capture specifics, not summaries. If you investig
 
 ### Step 3: Update the Changed date in TODO.md
 
-Use `Edit` to update the Changed column of the matching table row to today's date.
+Use `Edit` to update the Changed column of the matching table row to the current datetime.
 
 **Rules:**
 - Always mark user-provided text with `(@username)` at the start
@@ -279,7 +279,7 @@ When a user references a todo, they may use:
 - **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, and the `<!-- next: N -->` counter comment. No detail sections.
 - **`TODO/<NNN>-<slug>.md`** contains a single todo's detail section, starting with `## #<NNN> <Title>`. One file per todo.
 - The `TODO/` directory is a sibling of `TODO.md` (same parent directory).
-- Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both anchor links and filenames.
+- Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both file links and filenames.
 - Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
 - Subsection order within a detail file:
   1. `### Metadata`
