@@ -159,6 +159,8 @@ Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find 
 
 The user may refer to a todo by its number (e.g. `1`, `001`, or `#001`) or by title text (e.g. `csv parser`). Try number match first, then fall back to fuzzy title match.
 
+**If no todo item is specified:** filter the table rows to find all non-done items (rows whose Status cell is NOT `Done ✓`). If exactly one non-done item exists, use it automatically. If multiple non-done items exist, list them and ask the user which one to mark as done.
+
 ### Step 2: Update TODO.md
 
 Use `Edit` to modify the matching table row:
