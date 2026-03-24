@@ -95,9 +95,9 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 
 (@alice) Low priority but would be nice to have before the Q2 release.
 
-### Resolution
+### Work Log
 
-#### Work Context
+#### Context and Plan
 
 **Active since:** 2026-03-23 16:00
 
@@ -149,15 +149,15 @@ Related: GitHub issue #412, PR #389 (previous attempt that was reverted).
 
 (@alice) Talked to Bob — he says the session store was migrated to Redis last sprint, might be related.
 
-### Resolution
+### Work Log
 
-#### Work Context
+#### Context and Plan
 
 **Active since:** 2026-03-22 14:00
 
 Plan: investigate the Redis session store TTL settings in `src/session/store.ts`, reproduce the issue by setting a short session TTL, then fix the state expiration. Focus on `generateOAuthState()` and `handleOAuthCallback()` in `src/auth/oauth.ts`.
 
-#### Findings when Done
+#### Conclusion
 
 **Completed:** 2026-03-22 17:30
 

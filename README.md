@@ -56,8 +56,8 @@ project/
 - **Rich context** — captures error messages, file locations, related issues, and conversation context
 - **Actionable guidance** — each todo has a "How to work on this" section with step-by-step instructions
 - **Timestamped notes** — append notes as `####` subsections with `(@username)` attribution
-- **Active state** — `work` transitions a todo to Active and records a "Work Context" subsection under Resolution with the plan of attack
-- **Resolution tracking** — structured Resolution section with `Work Context` (from work) and `Findings when Done` (from done) subsections. The detail file is moved to `DONE/` only when marked done
+- **Active state** — `work` transitions a todo to Active and records a "Context and Plan" subsection under Work Log with the plan of attack
+- **Work log tracking** — structured Work Log section with `Context and Plan` (from work) and `Conclusion` (from done) subsections. The detail file is moved to `DONE/` only when marked done
 - **Metadata** — creation datetime, folder, project, file location, status
 - **Flexible referencing** — reference todos by number (`/todo work 1`, `/todo work #001`) or by text (`/todo work csv parser`) — numbers are supported but optional
 - **Legacy migration** — automatically migrates existing bullet-list or single-file `TODO.md` to the numbered table format on first use
@@ -163,7 +163,7 @@ Claude: Added note to #001 "Fix CSV parser to support semicolon delimiters".
 You:  /todo work 1
 
 Claude: [displays the full context, metadata, and guidance]
-        [sets status to Active, records Work Context in Resolution section]
+        [sets status to Active, records Context and Plan in Work Log section]
         I'm ready to work on #001 "Fix CSV parser to support semicolon delimiters".
         Based on the context above, here's my plan:
         1. Refactor the delimiter to be configurable...

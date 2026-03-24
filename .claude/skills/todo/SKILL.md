@@ -173,11 +173,11 @@ Use `Edit` to modify the matching table row:
 Use `Edit` on `TODO/<NNN>-<slug>.md` to:
 1. Change `Status` from `Open` or `Active` to `Done`
 2. Add `| Completed | <datetime> |` row to the Metadata table
-3. Append the `#### Findings when Done` subsection under `### Resolution`
+3. Append the `#### Conclusion` subsection under `### Work Log`
 
-If the `### Resolution` section already exists (e.g. from a prior `work` command that added a `#### Work Context` subsection), **append** the new subsection to it. If not, create `### Resolution` first, then add the subsection.
+If the `### Work Log` section already exists (e.g. from a prior `work` command that added a `#### Context and Plan` subsection), **append** the new subsection to it. If not, create `### Work Log` first, then add the subsection.
 
-Compose the Findings when Done subsection by mining the full conversation context. Include:
+Compose the Conclusion subsection by mining the full conversation context. Include:
 - What was actually done — files changed, functions modified, approach taken, commands run
 - What the root cause turned out to be (if investigative)
 - Decisions made and why (e.g. "chose approach X over Y because...")
@@ -187,9 +187,9 @@ Compose the Findings when Done subsection by mining the full conversation contex
 
 **Do not summarize briefly.** A one-sentence resolution like "Fixed the bug" is not acceptable. Write enough that someone reading only the resolution can understand what happened without re-reading the conversation.
 
-Findings when Done format:
+Conclusion format:
 ```markdown
-#### Findings when Done
+#### Conclusion
 
 **Completed:** <current datetime, e.g. 2026-03-22 16:45>
 
@@ -231,19 +231,19 @@ Use `Edit` to modify the matching table row:
 
 Use `Edit` on `TODO/<NNN>-<slug>.md` to:
 1. Change `Status` from `Open` to `Active`
-2. Append the `### Resolution` section at the end of the file (if not already present) with a `#### Work Context` subsection:
+2. Append the `### Work Log` section at the end of the file (if not already present) with a `#### Context and Plan` subsection:
 
 ```markdown
-### Resolution
+### Work Log
 
-#### Work Context
+#### Context and Plan
 
 **Active since:** <current datetime, e.g. 2026-03-22 16:45>
 
 <Plan of attack drawn from conversation context and the "How to work on this" section: what will be investigated or changed, approach, key files to touch.>
 ```
 
-If the `### Resolution` section already exists (e.g. from a previous work session), append a new `#### Work Context` entry instead of creating the section again.
+If the `### Work Log` section already exists (e.g. from a previous work session), append a new `#### Context and Plan` entry instead of creating the section again.
 
 ### Step 5: Begin work
 
@@ -334,9 +334,9 @@ When a user references a todo, they may use:
   2. `### Context`
   3. `### How to work on this`
   4. `### Notes` (append-only timestamped notes)
-  5. `### Resolution` (always the very last subsection, containing `####` subsections):
-     - `#### Work Context` — added by `work`, contains "Active since:" and plan of attack
-     - `#### Findings when Done` — added by `done`, contains "Completed:" and full resolution narrative
+  5. `### Work Log` (always the very last subsection, containing `####` subsections):
+     - `#### Context and Plan` — added by `work`, contains "Active since:" and plan of attack
+     - `#### Conclusion` — added by `done`, contains "Completed:" and full resolution narrative
 - Preserve all existing content when editing
 
 For complete format templates and examples, see [examples.md](examples.md).
