@@ -1,7 +1,7 @@
 ---
 name: todo
-description: This skill manages a local TODO.md task list with rich context tracking. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", or asks to track, capture, or manage tasks in a TODO list.
-argument-hint: <add|list|done|work|note|remove> [todo title or number]
+description: This skill manages a local TODO.md task list with rich context tracking. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", "log on todo", or asks to track, capture, or manage tasks in a TODO list.
+argument-hint: <add|list|done|work|note|log|remove> [todo title or number]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -40,6 +40,7 @@ Determine the operation from the user's arguments or phrasing:
 | `/todo done <title or number>` or "mark X as done" | **done** |
 | `/todo work <title or number>` or "work on X" | **work** |
 | `/todo note <title or number> <text>` or "add a note to todo X" | **note** |
+| `/todo log <title or number> <text>` or "log on todo X" | **log** |
 | `/todo remove <title or number>` or "delete todo X" | **remove** |
 
 ---
@@ -268,7 +269,9 @@ Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoa
 Use `Edit` on the extracted file path to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
 
 ```markdown
-#### <Short summary, 3-8 words> (<datetime>)
+#### <Short summary, 3-8 words>
+
+**Added:** <datetime>
 
 (@<username>) <user's text verbatim>
 
@@ -292,6 +295,59 @@ Use `Edit` to update the Changed column of the matching table row to the current
 - If the user provides no text but asks to "add a note", prompt them for what to write
 - If the user provides text but no conversation context is relevant, omit the generated paragraph
 - Notes are append-only — never edit or remove existing notes
+
+---
+
+## LOG — Adding a log entry to a todo
+
+Like NOTE, but the target section depends on the todo's state: entries go to **Notes** when the todo is Open, and to **Work Log** when it is Active or Done.
+
+### Step 1: Identify the todo
+
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`). Also extract the Status cell value from the matched row.
+
+### Step 2: Determine target section
+
+- If Status is `Open` → target section is `### Notes` (after `### How to work on this`)
+- If Status is `Active` or `Done ✓` → target section is `### Work Log` (always the last section)
+
+### Step 3: Compose and write the log entry
+
+Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoami`.
+
+Use `Edit` on the extracted file path to locate the target section, then append the new log entry:
+
+```markdown
+#### <Short summary, 3-8 words>
+
+**Added:** <datetime>
+
+(@<username>) <user's text verbatim>
+
+<Generated context paragraph — see below>
+```
+
+After the user's verbatim text, add a generated context paragraph (without `(@username)` prefix) if the conversation contains relevant information that enriches the entry. This includes:
+- Error output, test results, or command output from the current session
+- Findings from file reads or code investigation done in this conversation
+- Code snippets, file paths, or line numbers discovered during the discussion
+- Connections to other todos, issues, or prior work discussed
+
+The generated paragraph should capture specifics, not summaries.
+
+When targeting `### Work Log`: append the entry at the end of the Work Log section, after any existing `#### Context and Plan` or `#### Conclusion` subsections.
+
+When targeting `### Notes`: append after existing notes (identical to the note verb).
+
+### Step 4: Update the Changed date in TODO.md
+
+Use `Edit` to update the Changed column of the matching table row to the current datetime.
+
+**Rules:**
+- Always mark user-provided text with `(@username)` at the start
+- If the user provides no text but asks to "add a log", prompt them for what to write
+- If the user provides text but no conversation context is relevant, omit the generated paragraph
+- Log entries are append-only — never edit or remove existing entries
 
 ---
 
@@ -336,6 +392,7 @@ When a user references a todo, they may use:
   4. `### Notes` (append-only timestamped notes)
   5. `### Work Log` (always the very last subsection, containing `####` subsections):
      - `#### Context and Plan` — added by `work`, contains "Active since:" and plan of attack
+     - `#### <summary>` — added by `log` on Active/Done todos, same format as notes
      - `#### Conclusion` — added by `done`, contains "Completed:" and full resolution narrative
 - Preserve all existing content when editing
 

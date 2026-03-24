@@ -85,13 +85,17 @@ The `src/parser/` module was written quickly and has no tests. It handles CSV an
 
 ### Notes
 
-#### Semicolon delimiter needed for EU (2026-03-22 11:20)
+#### Semicolon delimiter needed for EU
+
+**Added:** 2026-03-22 11:20
 
 (@alice) The CSV parser also needs to handle semicolon-delimited files for EU customers.
 
 Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 
-#### Nice to have before Q2 (2026-03-23 15:45)
+#### Nice to have before Q2
+
+**Added:** 2026-03-23 15:45
 
 (@alice) Low priority but would be nice to have before the Q2 release.
 
@@ -102,6 +106,14 @@ Confirmed: `src/parser/csv.ts` currently hardcodes `,` as delimiter on line 14.
 **Active since:** 2026-03-23 16:00
 
 Plan: read all files in `src/parser/`, create `tests/parser/` directory mirroring the source structure, write unit tests covering happy path CSV/JSON parsing, empty input, malformed input, and UTF-8 encoding edge cases. Will also add semicolon delimiter tests per the note above. Verify with `npm test`.
+
+#### Found edge case in JSON parser
+
+**Added:** 2026-03-23 17:30
+
+(@alice) The JSON parser silently drops nested arrays deeper than 3 levels.
+
+Discovered while writing tests for `src/parser/json.ts`: `parseJsonInput()` at line 47 uses a hardcoded `maxDepth: 3` option. Arrays at depth 4+ are replaced with `null`. This should be covered by the new tests and probably fixed.
 ```
 
 ### `TODO/DONE/001-fix-login-bug-on-oauth-flow.md` — completed todo
@@ -145,7 +157,9 @@ Related: GitHub issue #412, PR #389 (previous attempt that was reverted).
 
 ### Notes
 
-#### Session store might be the culprit (2026-03-22 11:00)
+#### Session store might be the culprit
+
+**Added:** 2026-03-22 11:00
 
 (@alice) Talked to Bob — he says the session store was migrated to Redis last sprint, might be related.
 
@@ -191,7 +205,9 @@ Each note is a `####` subheading under `### Notes`:
 ```markdown
 ### Notes
 
-#### <Short summary, 3-8 words> (<datetime>)
+#### <Short summary, 3-8 words>
+
+**Added:** <datetime>
 
 (@<username>) <user's text verbatim>
 
