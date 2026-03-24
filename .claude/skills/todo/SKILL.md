@@ -1,7 +1,7 @@
 ---
 name: todo
 description: This skill manages a local TODO.md task list with rich context tracking. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", "log on todo", or asks to track, capture, or manage tasks in a TODO list.
-argument-hint: <add|list|note|work|log|done|remove> [todo title or number]
+argument-hint: <add|list|note|work|log|done|reopen|remove> [todo title or number]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -41,6 +41,7 @@ Determine the operation from the user's arguments or phrasing:
 | `/todo work <title or number>` or "work on X" | **work** |
 | `/todo log <title or number> <text>` or "log on todo X" | **log** |
 | `/todo done <title or number>` or "mark X as done" | **done** |
+| `/todo reopen <title or number>` or "reopen todo X" | **reopen** |
 | `/todo remove <title or number>` or "delete todo X" | **remove** |
 
 ---
@@ -351,6 +352,36 @@ Use `Edit` to update the Changed column of the matching table row to the current
 
 ---
 
+## REOPEN — Reopening a completed todo
+
+### Step 1: Identify the todo
+
+Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Verify the Status cell is `Done ✓`. If the todo is not done, inform the user and stop.
+
+### Step 2: Update TODO.md
+
+Use `Edit` to modify the matching table row:
+1. Remove `~~strikethrough~~` from around the link text
+2. Change the Status cell from `Done ✓` to `Open`
+3. Update the link from `(TODO/DONE/<NNN>-<slug>.md)` to `(TODO/<NNN>-<slug>.md)`
+4. Update the Changed datetime to the current datetime
+
+### Step 3: Move the detail file back to TODO/
+
+Move the file via Bash: `mv TODO/DONE/<NNN>-<slug>.md TODO/<NNN>-<slug>.md`
+
+### Step 4: Update the detail file
+
+Use `Edit` on `TODO/<NNN>-<slug>.md` to:
+1. Change `Status` from `Done` to `Open`
+2. Remove the `| Completed | <datetime> |` row from the Metadata table
+
+**Rules:**
+- Do NOT remove the Work Log, Conclusion, or any other existing content — all history is preserved
+- The todo returns to `Open`, not `Active`. Use `work` to re-activate it if needed.
+
+---
+
 ## REMOVE — Deleting a todo
 
 1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
@@ -384,7 +415,7 @@ When a user references a todo, they may use:
 - Detail files live in `TODO/`, a subdirectory next to `TODO.md`. `DONE/` is a subdirectory inside `TODO/`.
 - Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both file links and filenames.
 - Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
-- Status values: `Open` → `Active` (set by work) → `Done` (set by done). In `TODO.md` the done status is `Done ✓`.
+- Status values: `Open` → `Active` (set by work) → `Done` (set by done) → `Open` (set by reopen). In `TODO.md` the done status is `Done ✓`.
 - Subsection order within a detail file:
   1. `### Metadata`
   2. `### Context`
