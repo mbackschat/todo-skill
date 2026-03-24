@@ -52,6 +52,7 @@
 
 ---
 <!-- next: 3 -->
+<!-- skill: ce08c10 -->
 ```
 
 ### `TODO/002-add-unit-tests-for-parser-module.md` — active todo (work started)
@@ -221,6 +222,7 @@ The counter is an HTML comment at the end of `TODO.md`, after the `---` separato
 ```markdown
 ---
 <!-- next: 3 -->
+<!-- skill: ce08c10 -->
 ```
 
 The counter tracks the next number to assign. It is incremented each time a todo is added and never decremented (even when todos are removed).

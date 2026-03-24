@@ -127,6 +127,7 @@ The detail file (`<NNN>-<slug>.md`) must include these sections:
 
 ---
 <!-- next: 1 -->
+<!-- skill: ce08c10 -->
 ```
 
 **Note:** When adding the first todo, insert the table row after the header separator line (`|----|-...`). The `Created` and `Changed` columns use `YYYY-MM-DD HH:MM` datetime format, matching the detail files.
@@ -409,7 +410,7 @@ When a user references a todo, they may use:
 
 ## File format rules
 
-- **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, and the `<!-- next: N -->` counter comment. No detail sections.
+- **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, the `<!-- next: N -->` counter comment, and the `<!-- skill: SHA -->` version comment. No detail sections.
 - **`TODO/<NNN>-<slug>.md`** contains an open todo's detail section, starting with `## #<NNN> <Title>`. One file per todo, in the `TODO/` subdirectory.
 - **`TODO/DONE/<NNN>-<slug>.md`** contains a completed todo's detail section. When a todo is marked done, its file is moved from `TODO/` to `TODO/DONE/`.
 - Detail files live in `TODO/`, a subdirectory next to `TODO.md`. `DONE/` is a subdirectory inside `TODO/`.
@@ -431,44 +432,8 @@ For complete format templates and examples, see [examples.md](examples.md).
 
 ---
 
-## Migration from single-file format
+## Migrations
 
-If `TODO.md` exists and contains `## ` headings after the `---` separator, it uses the legacy single-file format. On the first operation, migrate automatically:
+`TODO.md` tracks the skill version via `<!-- skill: SHA -->`. On any operation, if the SHA doesn't match the current skill version, read [MIGRATIONS.md](MIGRATIONS.md) for migration steps from the recorded SHA to the current one. Apply them in order, then update the SHA comment.
 
-1. Read the full `TODO.md`
-2. Split content after the `---` separator on `## ` headings to extract each detail section
-3. Create `TODO/` directory: `mkdir -p TODO`
-4. For each detail section, assign incrementing numbers starting at `001`, derive the slug from the heading, and write `TODO/<NNN>-<slug>.md` (updating the heading to `## #<NNN> <Title>`)
-5. Replace the bullet list with a table (links pointing to `TODO/<NNN>-<slug>.md`) and add the `<!-- next: N+1 -->` counter
-5. Inform the user: "Migrated N todos to split-file format."
-
-### Migration from bullet-list index format
-
-If `TODO.md` exists and contains bullet lines (`- [`) instead of a table, migrate the index:
-
-1. Parse each bullet line to extract: title, slug, priority, done status
-2. Assign incrementing numbers starting at `001`
-3. Create `TODO/` directory: `mkdir -p TODO`
-4. Move and rename each `<old-slug>.md` to `TODO/<NNN>-<old-slug>.md` and update the heading to `## #<NNN> <Title>`
-5. Replace the bullet list with the table format (links pointing to `TODO/<NNN>-<slug>.md`) and add the counter
-5. Inform the user: "Migrated TODO.md index to numbered table format."
-
-Migration is idempotent — if the table format and counter already exist, skip.
-
-### Migration of done todos to TODO/DONE/ folder
-
-If `TODO.md` has rows with status `Done ✓` whose links point to a file not in `TODO/DONE/`, migrate on the first operation:
-
-1. Create `TODO/DONE/` directory if it doesn't exist: `mkdir -p TODO/DONE`
-2. For each done row: move the file to `TODO/DONE/<NNN>-<slug>.md` and update the link in `TODO.md` to `(TODO/DONE/<NNN>-<slug>.md)`
-3. Inform the user: "Moved N completed todo(s) to TODO/DONE/."
-
-### Migration from flat layout
-
-If detail files (`<NNN>-*.md`) exist as siblings of `TODO.md` (not inside `TODO/`), migrate to the subdirectory layout:
-
-1. Create `TODO/` directory: `mkdir -p TODO`
-2. Move all `<NNN>-*.md` files from `TODO.md`'s directory into `TODO/`
-3. If a `DONE/` directory exists as a sibling of `TODO.md`, create `TODO/DONE/`, move its contents there, and remove the empty `DONE/` directory
-4. Update all links in `TODO.md`: `(<NNN>-<slug>.md)` → `(TODO/<NNN>-<slug>.md)` and `(DONE/<NNN>-<slug>.md)` → `(TODO/DONE/<NNN>-<slug>.md)`
-5. Inform the user: "Migrated from flat layout to TODO/ subdirectory."
+If no `<!-- skill: SHA -->` comment exists, assume the TODO.md is at the current skill version — just add the comment. No migration needed.

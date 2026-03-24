@@ -64,7 +64,7 @@ project/
 - **Reopen** — move a completed todo back to Open state, restoring the file from `DONE/` while preserving all history
 - **Metadata** — creation datetime, folder, project, file location, status
 - **Flexible referencing** — reference todos by number (`/todo work 1`, `/todo work #001`) or by text (`/todo work csv parser`) — numbers are supported but optional
-- **Legacy migration** — automatically migrates existing bullet-list or single-file `TODO.md` to the numbered table format on first use
+- **Versioned migrations** — `TODO.md` tracks the skill version via `<!-- skill: SHA -->`, and a separate MIGRATIONS.md file provides commit-keyed migration steps when the skill format changes
 
 ## Usage recommendation
 
@@ -85,6 +85,7 @@ Copy the skill directory into your Claude Code skills directory:
 mkdir -p ~/.claude/skills/todo
 cp .claude/skills/todo/SKILL.md ~/.claude/skills/todo/SKILL.md
 cp .claude/skills/todo/examples.md ~/.claude/skills/todo/examples.md
+cp .claude/skills/todo/MIGRATIONS.md ~/.claude/skills/todo/MIGRATIONS.md
 ```
 
 Then use `/todo` in any Claude Code session.
@@ -105,6 +106,7 @@ Then use `/todo` in any Claude Code session.
 
 ---
 <!-- next: 3 -->
+<!-- skill: ce08c10 -->
 ```
 
 **`TODO/001-fix-rate-limiter-bypassing-auth-endpoints.md`** — full detail:
