@@ -9,4 +9,8 @@ Apply migrations in order from the SHA recorded in `<!-- skill: SHA -->` to the 
 
 ---
 
-*(No entries yet — this is the initial version. Future skill changes that alter the file format will add migration entries here, keyed by commit SHA.)*
+## `PENDING` — Add `todo.mjs` helper script
+
+**What changed:** Mechanical operations (table manipulation, counter, slug generation, file moves) are now handled by `todo.mjs`, a cross-platform Node.js script. No changes to the TODO.md or detail file formats.
+
+**Migration:** No file format changes. Just update `<!-- skill: SHA -->` to the current version.

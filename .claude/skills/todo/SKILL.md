@@ -1,7 +1,7 @@
 ---
 name: todo
 description: This skill manages a local TODO.md task list with rich context tracking. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", "log on todo", or asks to track, capture, or manage tasks in a TODO list.
-argument-hint: <add|list|note|work|log|done|reopen|remove> [todo title or number]
+argument-hint: <add|list|note|work|log|done|reopen|remove|test> [todo title or number]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -14,16 +14,9 @@ Manage a structured, Markdown-based task list using a **split-file architecture*
 - **`TODO/<NNN>-<slug>.md`** — One file per todo, in a `TODO/` subdirectory, with full context, metadata, and guidance
 - **`TODO/DONE/`** — Completed todo files are moved here
 
-```
-project/
-  TODO.md                                    # Index: numbered table + counter
-  TODO/
-    DONE/
-      001-fix-login-bug-on-oauth-flow.md     # Completed todo #001
-    002-add-unit-tests-for-parser-module.md  # Open todo #002
-```
+This split keeps todo details out of Claude's context window when they aren't needed. Most mechanical operations (table manipulation, counter, file moves) are handled by the helper script `todo.mjs`.
 
-This split keeps todo details out of Claude's context window when they aren't needed. LIST only greps table rows; WORK reads a single detail file; write operations use targeted edits.
+**Helper script:** `todo.mjs` lives in the same directory as this skill file. Before the first script call in any operation, locate it once with Glob pattern `**/.claude/skills/todo/todo.mjs` and remember the resolved path as `$TODO`. Then run all commands as `node $TODO <command> [args...]` via Bash from the project root. On error, the script prints to stderr and exits non-zero.
 
 Current todo count: !`grep -c "^| [0-9]" TODO.md 2>/dev/null || echo "0 (no TODO.md)"`
 
@@ -43,59 +36,38 @@ Determine the operation from the user's arguments or phrasing:
 | `/todo done <title or number>` or "mark X as done" | **done** |
 | `/todo reopen <title or number>` or "reopen todo X" | **reopen** |
 | `/todo remove <title or number>` or "delete todo X" | **remove** |
+| `/todo test` or "test the todo skill" | **test** |
 
 ---
 
 ## ADD — Adding a new todo
 
-### Step 1: Allocate the next number
+### Step 1: Initialize and allocate
 
-Read `TODO.md` and extract the counter from the `<!-- next: N -->` comment at the end of the file. If `TODO.md` doesn't exist, start at `1`. Pad the number to 3 digits (e.g. `1` → `001`, `42` → `042`).
+Run `node $TODO init` then `node $TODO next-id <title words>`. Parse output to get the 3-digit number and slug (e.g. `003 fix-login-bug`).
 
-### Step 2: Build the anchor slug
+### Step 2: Determine priority
 
-Create a URL-safe anchor slug from the title:
-- Lowercase, replace spaces with `-`, strip special characters
-- Prepend the 3-digit number: `<NNN>-<title-slug>`
-- Example: number 3, title "Fix login bug" → `003-fix-login-bug`
-- If a slug already exists (check `TODO.md` table rows and `TODO/<NNN>-<slug>.md` files), append `-2`, `-3`, etc. to the title portion
+If the user provided a priority (e.g. "high priority", "P1", "low", "critical", "nice-to-have"), normalize to one of: `🔴 High` / `🟡 Medium` / `🟢 Low`. Map common variants: P1/critical/urgent → High, P2/normal → Medium, P3/nice-to-have/low → Low. If no priority given, use empty string.
 
-### Step 3: Determine priority/relevancy
+### Step 3: Compose the detail file content
 
-If the user provided a priority or relevancy level (e.g. "high priority", "P1", "low", "critical", "nice-to-have"), normalize it to one of:
-- `🔴 High` / `🟡 Medium` / `🟢 Low`
+Before writing anything, compose the full detail file content while you have conversation context. The detail file must be **self-contained and actionable** for a future Claude session with zero prior context.
 
-Map common variants: P1/critical/urgent → High, P2/normal → Medium, P3/nice-to-have/low → Low.
-
-If no priority given, omit the badge entirely (leave the Priority cell empty).
-
-### Step 4: Collect metadata
-
-Gather from the current context:
-- **Created**: current date and time (ISO 8601, e.g. `2026-03-22 14:30`). To get the current time, run `date '+%Y-%m-%d %H:%M'` via Bash.
-- **Folder**: the current working directory (use `$PWD` or the active project path)
-- **Project**: the repository or project name (basename of the folder, or from `package.json`/`pyproject.toml` if present)
-- **File / Location**: if the todo is about a specific file, function, or line range, record it
-- Any other relevant context from the conversation (related issue numbers, PR links, error messages, commands that triggered this, etc.)
-
-### Step 5: Compose the detail file content
-
-Before writing anything, compose the full detail file content while you have conversation context. This is the most important step — the detail file must be **self-contained and actionable** for a future Claude session with zero prior context.
-
-The detail file (`<NNN>-<slug>.md`) must include these sections:
+The detail file (`TODO/<NNN>-<slug>.md`) must include these sections:
 
 **`## #<NNN> <Title>`** — one-sentence description of what needs to be done and why.
 
-**`### Metadata`** — table with Created, Folder, Project, Priority, Status, Location fields.
+**`### Metadata`** — table with Created, Folder (`$PWD`), Project (basename or from package.json/pyproject.toml), Priority, Status (`Open`), Location (file:line if applicable) fields.
 
-**`### Context`** — the full background. Mine the conversation thoroughly and include:
-- The exact error messages, stack traces, or log output discussed
-- Specific file paths, function names, line numbers, and code snippets examined
+**`### Context`** — the full background. Mine the conversation thoroughly:
+- Exact error messages, stack traces, log output
+- File paths, function names, line numbers, code snippets examined
 - Root cause analysis or hypotheses explored so far
-- Related issues, PRs, docs, or external resources mentioned
+- Related issues, PRs, docs, or external resources
 - Constraints or requirements the user stated
-- The user's original request or the quote that prompted this todo
-- Any investigation already done (what was tried, what was found, what was ruled out)
+- The user's original request or quote that prompted this todo
+- Investigation already done (what was tried, found, ruled out)
 
 **`### How to work on this`** — step-by-step guidance:
 1. What to read first (specific files, functions, docs)
@@ -103,54 +75,21 @@ The detail file (`<NNN>-<slug>.md`) must include these sections:
 3. Gotchas, known constraints, or things to watch out for
 4. How to verify the work is done (test commands, manual checks)
 
-**Do not summarize or abbreviate.** If the conversation includes a 10-line stack trace, include the full stack trace. If three files were investigated, list all three with what was found in each. The goal is zero information loss between the current conversation and the detail file.
+**Do not summarize or abbreviate.** Zero information loss between conversation and detail file.
 
-### Step 6: Write the files
+### Step 4: Write the files
 
-1. If `TODO.md` doesn't exist, create it with the skeleton below
-2. Use `Edit` to insert the table row before the empty line preceding the `---` separator in `TODO.md`:
-   ```
-   | <NNN> | [<summary>](TODO/<NNN>-<slug>.md) | <priority-badge-or-empty> | Open | <datetime> | <datetime> |
-   ```
-3. Use `Edit` to update the counter: replace `<!-- next: N -->` with `<!-- next: N+1 -->`
-4. Create the `TODO/` directory if it doesn't exist: `mkdir -p TODO`
-5. Use `Write` to create `TODO/<NNN>-<slug>.md` with the composed detail content
+1. Run `mkdir -p TODO` via Bash
+2. Run `node $TODO add-row <NNN> <slug> "<title>" "<priority>" "<datetime>"` (get datetime from `node $TODO meta`)
+3. Use `Write` to create `TODO/<NNN>-<slug>.md` with the composed detail content
 
-`TODO.md` skeleton (used only when creating a new file):
-```markdown
-# TODO
-
-## Tasks
-
-| No | Title | Priority | Status | Created | Changed |
-|----|-------|----------|--------|---------|---------|
-
----
-<!-- next: 1 -->
-<!-- skill: ce08c10 -->
-```
-
-**Note:** When adding the first todo, insert the table row after the header separator line (`|----|-...`). The `Created` and `Changed` columns use `YYYY-MM-DD HH:MM` datetime format, matching the detail files.
+See [examples.md](examples.md) for the complete detail file template.
 
 ---
 
 ## LIST — Showing todos
 
-1. Check if `TODO.md` exists; if not, say "No TODO.md found."
-2. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to extract only the table data rows — do NOT read the whole file
-3. Parse each row to extract: number, title, priority badge, status
-4. Display a formatted summary:
-
-```
-Todos in TODO.md:
-
-  No   Title                                   Priority   Status    Created            Changed
-  001  Fix login bug on OAuth flow             🔴 High    Done ✓    2026-03-22 09:45   2026-03-22 17:30
-  002  Add unit tests for parser module        🟢 Low     Active    2026-03-23 11:00   2026-03-23 15:45
-  003  Refactor database pool                             Open      2026-03-23 14:00   2026-03-23 14:00
-```
-
-Group by status (Active first, then Open, then Done). If the file doesn't exist, say so.
+Run `node $TODO list` and display the output to the user. The script groups by status (Active, Open, Done) and formats a table. If no `TODO.md` exists, it reports that.
 
 ---
 
@@ -158,59 +97,44 @@ Group by status (Active first, then Open, then Done). If the file doesn't exist,
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the slug from the file link `(TODO/<NNN>-<slug>.md)`.
+Run `node $TODO rows` to get table rows. Find the matching todo by number or fuzzy title match (see [Matching rules](#matching-todos-by-number-or-text)).
 
-The user may refer to a todo by its number (e.g. `1`, `001`, or `#001`) or by title text (e.g. `csv parser`). Try number match first, then fall back to fuzzy title match.
+**If no todo specified:** filter rows for non-done items. If exactly one exists, use it. If multiple, list them and ask the user.
 
-**If no todo item is specified:** filter the table rows to find all non-done items (rows whose Status cell is NOT `Done ✓`). If exactly one non-done item exists, use it automatically. If multiple non-done items exist, list them and ask the user which one to mark as done.
+### Step 2: Update TODO.md and move file
 
-### Step 2: Update TODO.md
+Get datetime from `node $TODO meta`.
 
-Use `Edit` to modify the matching table row:
-1. Add `~~strikethrough~~` around the link text
-2. Change the Status cell to `Done ✓`
-3. Update the Changed datetime to the current datetime
+1. Run `node $TODO done-row <NNN> "<datetime>"` — returns the slug
+2. Run `node $TODO move-done <slug>`
 
-### Step 3: Update the detail file
+### Step 3: Update detail file and compose Conclusion
 
-Use `Edit` on `TODO/<NNN>-<slug>.md` to:
-1. Change `Status` from `Open` or `Active` to `Done`
-2. Add `| Completed | <datetime> |` row to the Metadata table
-3. Append the `#### Conclusion` subsection under `### Work Log`
+Use `Edit` on `TODO/DONE/<NNN>-<slug>.md` to:
+1. Change `Status` to `Done`
+2. Add `| Completed | <datetime> |` to the Metadata table
+3. Append `#### Conclusion` under `### Work Log` (create `### Work Log` first if needed)
 
-If the `### Work Log` section already exists (e.g. from a prior `work` command that added a `#### Context and Plan` subsection), **append** the new subsection to it. If not, create `### Work Log` first, then add the subsection.
-
-Compose the Conclusion subsection by mining the full conversation context. Include:
-- What was actually done — files changed, functions modified, approach taken, commands run
-- What the root cause turned out to be (if investigative)
-- Decisions made and why (e.g. "chose approach X over Y because...")
-- Anything that deviated from the original "How to work on this" plan
-- Relevant output: test results, build output, or confirmation that the fix works
+Compose the Conclusion by mining the full conversation context:
+- What was actually done — files changed, functions modified, approach taken
+- Root cause (if investigative)
+- Decisions made and why
+- Deviations from the original plan
+- Test results, build output, confirmation that the fix works
 - Code snippets or diffs if they clarify the resolution
 
-**Do not summarize briefly.** A one-sentence resolution like "Fixed the bug" is not acceptable. Write enough that someone reading only the resolution can understand what happened without re-reading the conversation.
+**Do not summarize briefly.** Write enough that someone reading only the Conclusion can understand what happened.
 
 Conclusion format:
 ```markdown
 #### Conclusion
 
-**Completed:** <current datetime, e.g. 2026-03-22 16:45>
+**Completed:** <datetime>
 
 <Full resolution narrative drawn from conversation context.>
 
-***User note:*** <verbatim user-provided text, if any>
+***User note:*** <verbatim user-provided text, if any — omit if none>
 ```
-
-### Step 4: Move the detail file to TODO/DONE/
-
-1. Create the `TODO/DONE/` directory if it doesn't exist: `mkdir -p TODO/DONE`
-2. Move the file via Bash: `mv TODO/<NNN>-<slug>.md TODO/DONE/<NNN>-<slug>.md`
-3. Use `Edit` on `TODO.md` to update the link in the matching table row from `(TODO/<NNN>-<slug>.md)` to `(TODO/DONE/<NNN>-<slug>.md)`
-
-**Rules:**
-- Always generate a resolution from conversation context. If no context is available, write "No conversation context available — marked done manually."
-- If the user supplied text alongside the done command, include it verbatim as `***User note:***`. Never paraphrase.
-- If no user text was given, omit `***User note:***` entirely.
 
 ---
 
@@ -218,43 +142,39 @@ Conclusion format:
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`).
+Run `node $TODO rows`. Fuzzy match to find the todo. Use `node $TODO find <NNN>` to get the file path.
 
-### Step 2: Read and display the detail file
+### Step 2: Read and display
 
-Read the detail file at the extracted path and display the full detail section to the user.
+Read the detail file and display the full content to the user.
 
-### Step 3: Update TODO.md
+### Step 3: Update status
 
-Use `Edit` to modify the matching table row:
-1. Change the Status cell to `Active`
-2. Update the Changed datetime to the current datetime
+Run `node $TODO update-status <NNN> Active "<datetime>"`.
 
-### Step 4: Update the detail file
+### Step 4: Update detail file
 
-Use `Edit` on `TODO/<NNN>-<slug>.md` to:
+Use `Edit` on the detail file to:
 1. Change `Status` from `Open` to `Active`
-2. Append the `### Work Log` section at the end of the file (if not already present) with a `#### Context and Plan` subsection:
+2. Append `### Work Log` (if not present) with a `#### Context and Plan` subsection:
 
 ```markdown
 ### Work Log
 
 #### Context and Plan
 
-**Active since:** <current datetime, e.g. 2026-03-22 16:45>
+**Active since:** <datetime>
 
-<Plan of attack drawn from conversation context and the "How to work on this" section: what will be investigated or changed, approach, key files to touch.>
+<Plan of attack drawn from conversation context and "How to work on this" section.>
 ```
 
-If the `### Work Log` section already exists (e.g. from a previous work session), append a new `#### Context and Plan` entry instead of creating the section again.
+If `### Work Log` already exists, append a new `#### Context and Plan` entry.
 
 ### Step 5: Begin work
 
-Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here's my plan:" and outline the next steps from the "How to work on this" section. Proceed to implement or investigate as guided by the section.
+Say: "I'm ready to work on **#<NNN> <title>**." and outline next steps from the "How to work on this" section. Proceed to implement.
 
-**Rules:**
-- WORK does **not** mark a todo as done and does **not** move the file to `TODO/DONE/`
-- The todo stays in `TODO/`
+**Rules:** WORK does not mark done or move the file.
 
 ---
 
@@ -262,13 +182,13 @@ Say: "I'm ready to work on **#<NNN> <title>**. Based on the context above, here'
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`).
+Run `node $TODO rows`. Fuzzy match. Extract the file path from the matching row's link.
 
 ### Step 2: Compose and write the note
 
-Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoami`.
+Get datetime and username from `node $TODO meta`.
 
-Use `Edit` on the extracted file path to locate or create the `### Notes` subsection (after `### How to work on this`), then append the new note entry:
+Use `Edit` to locate or create `### Notes` (after `### How to work on this`), then append:
 
 ```markdown
 #### <Short summary, 3-8 words>
@@ -280,76 +200,35 @@ Use `Edit` on the extracted file path to locate or create the `### Notes` subsec
 <Generated context paragraph — see below>
 ```
 
-After the user's verbatim text, add a generated context paragraph (without `(@username)` prefix) if the conversation contains relevant information that enriches the note. This includes:
-- Error output, test results, or command output from the current session
-- Findings from file reads or code investigation done in this conversation
-- Code snippets, file paths, or line numbers discovered during the discussion
-- Connections to other todos, issues, or prior work discussed
+Add a generated context paragraph (without `(@username)`) if the conversation contains relevant specifics: error output, file paths, line numbers, code snippets, test results, connections to other work. Capture specifics, not summaries. Omit if no relevant context.
 
-The generated paragraph should capture specifics, not summaries. If you investigated a file and found the relevant line, include the file path and line number. If a test failed with a specific error, include the error.
+### Step 3: Update Changed date
 
-### Step 3: Update the Changed date in TODO.md
+Run `node $TODO update-status <NNN> <current-status> "<datetime>"`.
 
-Use `Edit` to update the Changed column of the matching table row to the current datetime.
-
-**Rules:**
-- Always mark user-provided text with `(@username)` at the start
-- If the user provides no text but asks to "add a note", prompt them for what to write
-- If the user provides text but no conversation context is relevant, omit the generated paragraph
-- Notes are append-only — never edit or remove existing notes
+**Rules:** Always prefix user text with `(@username)`. Notes are append-only.
 
 ---
 
 ## LOG — Adding a log entry to a todo
 
-Like NOTE, but the target section depends on the todo's state: entries go to **Notes** when the todo is Open, and to **Work Log** when it is Active or Done.
+Like NOTE, but the target section depends on the todo's state:
+- **Open** → target `### Notes`
+- **Active** or **Done** → target `### Work Log`
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Extract the file path from the link in the Title cell (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`). Also extract the Status cell value from the matched row.
+Run `node $TODO rows`. Fuzzy match. Extract status and file path from the row.
 
-### Step 2: Determine target section
+### Step 2: Compose and write the entry
 
-- If Status is `Open` → target section is `### Notes` (after `### How to work on this`)
-- If Status is `Active` or `Done ✓` → target section is `### Work Log` (always the last section)
+Same format as NOTE. Use `Edit` to append to the target section. When targeting `### Work Log`, append after existing subsections.
 
-### Step 3: Compose and write the log entry
+### Step 3: Update Changed date
 
-Get the current datetime via `date '+%Y-%m-%d %H:%M'` and the username via `whoami`.
+Run `node $TODO update-status <NNN> <current-status> "<datetime>"`.
 
-Use `Edit` on the extracted file path to locate the target section, then append the new log entry:
-
-```markdown
-#### <Short summary, 3-8 words>
-
-**Added:** <datetime>
-
-(@<username>) <user's text verbatim>
-
-<Generated context paragraph — see below>
-```
-
-After the user's verbatim text, add a generated context paragraph (without `(@username)` prefix) if the conversation contains relevant information that enriches the entry. This includes:
-- Error output, test results, or command output from the current session
-- Findings from file reads or code investigation done in this conversation
-- Code snippets, file paths, or line numbers discovered during the discussion
-- Connections to other todos, issues, or prior work discussed
-
-The generated paragraph should capture specifics, not summaries.
-
-When targeting `### Work Log`: append the entry at the end of the Work Log section, after any existing `#### Context and Plan` or `#### Conclusion` subsections.
-
-When targeting `### Notes`: append after existing notes (identical to the note verb).
-
-### Step 4: Update the Changed date in TODO.md
-
-Use `Edit` to update the Changed column of the matching table row to the current datetime.
-
-**Rules:**
-- Always mark user-provided text with `(@username)` at the start
-- If the user provides no text but asks to "add a log", prompt them for what to write
-- If the user provides text but no conversation context is relevant, omit the generated paragraph
-- Log entries are append-only — never edit or remove existing entries
+**Rules:** Same as NOTE — `(@username)` prefix, append-only.
 
 ---
 
@@ -357,41 +236,39 @@ Use `Edit` to update the Changed column of the matching table row to the current
 
 ### Step 1: Identify the todo
 
-Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows. Find the matching todo by number or fuzzy title match. Verify the Status cell is `Done ✓`. If the todo is not done, inform the user and stop.
+Run `node $TODO find <NNN>`. Verify status is `Done ✓`. If not done, inform user and stop.
 
-### Step 2: Update TODO.md
+### Step 2: Update TODO.md and move file
 
-Use `Edit` to modify the matching table row:
-1. Remove `~~strikethrough~~` from around the link text
-2. Change the Status cell from `Done ✓` to `Open`
-3. Update the link from `(TODO/DONE/<NNN>-<slug>.md)` to `(TODO/<NNN>-<slug>.md)`
-4. Update the Changed datetime to the current datetime
+Get datetime from `node $TODO meta`.
 
-### Step 3: Move the detail file back to TODO/
+1. Run `node $TODO reopen-row <NNN> "<datetime>"` — returns the slug
+2. Run `node $TODO move-open <slug>`
 
-Move the file via Bash: `mv TODO/DONE/<NNN>-<slug>.md TODO/<NNN>-<slug>.md`
-
-### Step 4: Update the detail file
+### Step 3: Update detail file
 
 Use `Edit` on `TODO/<NNN>-<slug>.md` to:
 1. Change `Status` from `Done` to `Open`
-2. Remove the `| Completed | <datetime> |` row from the Metadata table
+2. Remove the `| Completed | <datetime> |` row
 
-**Rules:**
-- Do NOT remove the Work Log, Conclusion, or any other existing content — all history is preserved
-- The todo returns to `Open`, not `Active`. Use `work` to re-activate it if needed.
+**Rules:** Do NOT remove Work Log, Conclusion, or any history. The todo returns to `Open`, not `Active`.
 
 ---
 
 ## REMOVE — Deleting a todo
 
-1. Use `Grep` with pattern `^\| \d{3} \|` on `TODO.md` to get the table rows
-2. Find the matching todo and extract the file path from the link (may be `TODO/<NNN>-<slug>.md` or `TODO/DONE/<NNN>-<slug>.md`)
-3. Edit `TODO.md` to remove the table row
-4. Delete the detail file at the extracted path via Bash (`rm <path>`)
-5. Confirm deletion to the user
+1. Run `node $TODO rows`. Fuzzy match to find the todo.
+2. Run `node $TODO remove-row <NNN>` — outputs the file path
+3. Delete the detail file via Bash: `rm <path>`
+4. Confirm deletion to the user
 
-**Note:** Do NOT renumber remaining todos or update the counter. Numbers are permanent identifiers.
+**Note:** Do NOT renumber remaining todos or update the counter. Numbers are permanent.
+
+---
+
+## TEST — End-to-end skill test
+
+Read [TEST.md](TEST.md) and follow the playbook instructions. This exercises all operations with 2 realistic todos through every state transition.
 
 ---
 
@@ -402,38 +279,28 @@ When a user references a todo, they may use:
 - Title text: `csv parser`, `login bug` — fuzzy match against the Title column
 
 **Matching rules:**
-1. Try numeric match first: strip `#` prefix, convert to integer, pad to 3 digits, find the row starting with `| <NNN> |`
-2. If no numeric match or the argument contains non-numeric characters, fall back to fuzzy title match using case-insensitive substring search
-3. If multiple matches found, show the matches and ask the user to be more specific
+1. Try numeric match first: strip `#`, convert to integer, use `node $TODO find <number>`
+2. If no numeric match or the argument contains non-numeric characters, run `node $TODO rows` and do a case-insensitive substring match on the title text
+3. If multiple matches, show them and ask the user to be more specific
 
 ---
 
 ## File format rules
 
-- **`TODO.md`** contains ONLY: `# TODO` heading, `## Tasks` heading, the table (header + data rows), the `---` separator, the `<!-- next: N -->` counter comment, and the `<!-- skill: SHA -->` version comment. No detail sections.
-- **`TODO/<NNN>-<slug>.md`** contains an open todo's detail section, starting with `## #<NNN> <Title>`. One file per todo, in the `TODO/` subdirectory.
-- **`TODO/DONE/<NNN>-<slug>.md`** contains a completed todo's detail section. When a todo is marked done, its file is moved from `TODO/` to `TODO/DONE/`.
-- Detail files live in `TODO/`, a subdirectory next to `TODO.md`. `DONE/` is a subdirectory inside `TODO/`.
-- Slug derivation: 3-digit number prefix, then lowercase title with spaces replaced by `-` and special characters stripped. Used for both file links and filenames.
-- Numbers are permanent — never renumber or reorder existing rows. Always use the next counter value for new todos.
-- Status values: `Open` → `Active` (set by work) → `Done` (set by done) → `Open` (set by reopen). In `TODO.md` the done status is `Done ✓`.
-- Subsection order within a detail file:
-  1. `### Metadata`
-  2. `### Context`
-  3. `### How to work on this`
-  4. `### Notes` (append-only timestamped notes)
-  5. `### Work Log` (always the very last subsection, containing `####` subsections):
-     - `#### Context and Plan` — added by `work`, contains "Active since:" and plan of attack
-     - `#### <summary>` — added by `log` on Active/Done todos, same format as notes
-     - `#### Conclusion` — added by `done`, contains "Completed:" and full resolution narrative
+- **`TODO.md`** contains ONLY: headings, the table, the `---` separator, `<!-- next: N -->` counter, and `<!-- skill: SHA -->` version comment
+- **`TODO/<NNN>-<slug>.md`** — open/active todo detail files
+- **`TODO/DONE/<NNN>-<slug>.md`** — completed todo detail files
+- Numbers are permanent — never renumber. Always use the counter for new todos.
+- Status flow: `Open` → `Active` (work) → `Done` (done) → `Open` (reopen). In TODO.md done status is `Done ✓`.
+- Subsection order in detail files: Metadata, Context, How to work on this, Notes, Work Log (last)
 - Preserve all existing content when editing
 
-For complete format templates and examples, see [examples.md](examples.md).
+For complete format templates, see [examples.md](examples.md).
 
 ---
 
 ## Migrations
 
-`TODO.md` tracks the skill version via `<!-- skill: SHA -->`. On any operation, if the SHA doesn't match the current skill version, read [MIGRATIONS.md](MIGRATIONS.md) for migration steps from the recorded SHA to the current one. Apply them in order, then update the SHA comment.
+`TODO.md` tracks the skill version via `<!-- skill: SHA -->`. On any operation, if the SHA doesn't match the current skill version, read [MIGRATIONS.md](MIGRATIONS.md) for migration steps. Apply them in order, then update the SHA.
 
-If no `<!-- skill: SHA -->` comment exists, assume the TODO.md is at the current skill version — just add the comment. No migration needed.
+If no `<!-- skill: SHA -->` comment exists, just add it. No migration needed.

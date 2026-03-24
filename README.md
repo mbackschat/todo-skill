@@ -26,6 +26,12 @@ This means the skill stays fast and context-efficient regardless of how many tod
 
 **Trade-off:** slightly more files on disk. But each file is small, independently readable, and diffs cleanly in git.
 
+## Script-assisted operations
+
+Mechanical operations — table row manipulation, counter incrementing, slug generation, file moves, status updates — are handled by a cross-platform Node.js helper script (`todo.mjs`). This reduces the number of tool calls Claude needs per operation and keeps the skill prompt focused on what Claude is good at: fuzzy matching, conversation mining, and rich content generation.
+
+The script uses only Node.js built-ins (no dependencies) and works on Mac, Linux, and Windows.
+
 ## Directory structure
 
 ```
@@ -49,6 +55,7 @@ project/
 | `/todo done <# or title>` | Mark complete, record findings, move to DONE/ |
 | `/todo reopen <# or title>` | Move a done todo back to Open, restore to TODO/ |
 | `/todo remove <# or title>` | Delete a todo |
+| `/todo test` | Run an end-to-end test exercising all operations (~$7 on Opus 1M) |
 
 ## Features
 
@@ -82,10 +89,7 @@ Either way, the files are plain Markdown and always human-readable.
 Copy the skill directory into your Claude Code skills directory:
 
 ```bash
-mkdir -p ~/.claude/skills/todo
-cp .claude/skills/todo/SKILL.md ~/.claude/skills/todo/SKILL.md
-cp .claude/skills/todo/examples.md ~/.claude/skills/todo/examples.md
-cp .claude/skills/todo/MIGRATIONS.md ~/.claude/skills/todo/MIGRATIONS.md
+cp -r .claude/skills/todo ~/.claude/skills/todo
 ```
 
 Then use `/todo` in any Claude Code session.
