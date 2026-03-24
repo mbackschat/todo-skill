@@ -1,7 +1,7 @@
 ---
 name: todo
 description: This skill manages a local TODO.md task list with rich context tracking. Use when the user says "/todo", "add a todo", "mark todo as done", "list todos", "work on todo", "show todos", "add a note to todo", "log on todo", or asks to track, capture, or manage tasks in a TODO list.
-argument-hint: <add|list|done|work|note|log|remove> [todo title or number]
+argument-hint: <add|list|note|work|log|done|remove> [todo title or number]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -37,10 +37,10 @@ Determine the operation from the user's arguments or phrasing:
 |-----------|-----------|
 | `/todo add ...` or "add a todo for ..." | **add** |
 | `/todo list` or `/todo` (no args) or "list todos" or "show todos" | **list** |
-| `/todo done <title or number>` or "mark X as done" | **done** |
-| `/todo work <title or number>` or "work on X" | **work** |
 | `/todo note <title or number> <text>` or "add a note to todo X" | **note** |
+| `/todo work <title or number>` or "work on X" | **work** |
 | `/todo log <title or number> <text>` or "log on todo X" | **log** |
+| `/todo done <title or number>` or "mark X as done" | **done** |
 | `/todo remove <title or number>` or "delete todo X" | **remove** |
 
 ---
